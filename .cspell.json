@@ -1,0 +1,39 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "BQML",
+    "SHAP",
+    "venv",
+    "pyproject",
+    "pytest",
+    "Dataform",
+    "SQLX",
+    "dtypes",
+    "fsspec",
+    "gcsfs",
+    "openpyxl",
+    "unpivot",
+    "Firestore",
+    "firestore",
+    "alloydb",
+    "openxmlformats",
+    "officedocument",
+    "spreadsheetml",
+    "gcsfs",
+    "fsspec",
+    "openpyxl",
+    "db-dtypes",
+    "gcloud",
+    "GCSFS",
+    "FSSPEC"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/__pycache__/**",
+    "**/.venv/**",
+    "**/uv.lock",
+    "**/.pytest_cache/**",
+    "**/.git/**"
+  ]
+}

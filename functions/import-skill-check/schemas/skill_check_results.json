@@ -1,0 +1,6 @@
+[
+  {"name": "user_id", "type": "STRING", "mode": "REQUIRED", "description": "ユーザーID"},
+  {"name": "service_id", "type": "INTEGER", "mode": "REQUIRED", "description": "サービスID"},
+  {"name": "is_practical_level", "type": "INTEGER", "mode": "REQUIRED", "description": "実務レベルフラグ (1: 実務レベル, 0: 実務レベルでない)"},
+  {"name": "updated_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "更新日時"}
+]

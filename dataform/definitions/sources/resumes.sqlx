@@ -1,0 +1,15 @@
+config {
+  type: "declaration",
+  database: "YOUR_PROJECT_ID",
+  schema: "other_team_dataset",
+  name: "resumes",
+  description: "他チームが管理する、サービス別のレジュメ・経歴情報",
+  columns: {
+    user_id: "ユーザーID",
+    google_cloud_service_id: "Google Cloud サービスID",
+    experience_years: "そのサービスの経験年数",
+    reliability_score: "経歴情報の信頼性スコア (3: 高, 2: 中, 1: 低)",
+    created_at: "レコード作成日時",
+    updated_at: "レコード更新日時"
+  }
+}

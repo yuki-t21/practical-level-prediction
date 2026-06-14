@@ -1,0 +1,16 @@
+config {
+  type: "declaration",
+  database: "YOUR_PROJECT_ID",
+  schema: "other_team_dataset",
+  name: "tech_blog_metrics",
+  description: "他チームが管理する、サービス別の技術ブログ執筆メトリクス",
+  columns: {
+    user_id: "ユーザーID",
+    blog_service: "ブログサービス名 (例: Qiita, Zenn)",
+    google_cloud_service_id: "Google Cloud サービスID",
+    article_count: "そのサービスについて執筆した記事数",
+    reaction_count: "記事への合計リアクション数 (いいね・ブックマーク等)",
+    created_at: "レコード作成日時",
+    updated_at: "レコード更新日時"
+  }
+}

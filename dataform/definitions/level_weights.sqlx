@@ -1,0 +1,22 @@
+config {
+  type: "table",
+  schema: "features",
+  name: "level_weights",
+  description: "資格レベルと難易度重みのマッピングテーブル",
+  columns: {
+    cert_level_id: "資格レベルID (主キー)",
+    weight: "資格難易度重み (プロ: 3.0, アソシエイト: 2.0, 基礎: 1.0)"
+  }
+}
+
+SELECT
+  'professional' AS cert_level_id,
+  3.0 AS weight
+UNION ALL
+SELECT
+  'associate' AS cert_level_id,
+  2.0 AS weight
+UNION ALL
+SELECT
+  'foundational' AS cert_level_id,
+  1.0 AS weight

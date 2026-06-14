@@ -1,0 +1,13 @@
+config {
+  type: "operations",
+  hasOutput: true,
+  schema: "ml_models",
+  name: "evaluate_model_operation",
+  tags: ["service_features_pipeline"],
+  dependencies: ["train_model_operation"]
+}
+
+CREATE OR REPLACE TABLE `ml_models.evaluation_${dataform.projectConfig.vars.service_id}` AS
+SELECT *
+FROM
+  ML.EVALUATE (MODEL `ml_models.engineer_skill_model_${dataform.projectConfig.vars.service_id}`)

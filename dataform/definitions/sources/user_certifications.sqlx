@@ -1,0 +1,15 @@
+config {
+  type: "declaration",
+  database: "YOUR_PROJECT_ID",
+  schema: "other_team_dataset",
+  name: "user_certifications",
+  description: "各ユーザーの資格保持状況テーブル",
+  columns: {
+    user_id: "ユーザーID",
+    certification_id: "資格ID (google_cloud_certifications への外部キー)",
+    first_acquisition_date: "初回取得日",
+    latest_acquisition_date: "最新取得日",
+    created_at: "作成日時",
+    updated_at: "更新日時"
+  }
+}

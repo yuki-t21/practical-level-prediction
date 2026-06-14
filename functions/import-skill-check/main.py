@@ -17,6 +17,14 @@ storage_client = None
 
 
 def get_bq_client():
+    """
+    BigQuery クライアントを遅延初期化して返します。
+
+    Returns
+    -------
+    google.cloud.bigquery.Client
+        初期化済みの BigQuery クライアント。
+    """
     global bq_client
     if bq_client is None:
         bq_client = bigquery.Client()
@@ -24,6 +32,14 @@ def get_bq_client():
 
 
 def get_storage_client():
+    """
+    Cloud Storage クライアントを遅延初期化して返します。
+
+    Returns
+    -------
+    google.cloud.storage.Client
+        初期化済みの Cloud Storage クライアント。
+    """
     global storage_client
     if storage_client is None:
         storage_client = storage.Client()

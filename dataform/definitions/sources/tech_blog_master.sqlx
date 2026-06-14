@@ -1,0 +1,11 @@
+config {
+  type: "declaration",
+  database: "YOUR_PROJECT_ID",
+  schema: "other_team_dataset",
+  name: "tech_blog_master",
+  description: "技術ブログサービスのマスタテーブル (Qiita, Zenn 等)",
+  columns: {
+    blog_id: "ブログID",
+    blog_service_name: "ブログサービス名 (例: Qiita, Zenn, Hatena Blog)"
+  }
+}

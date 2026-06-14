@@ -1,0 +1,27 @@
+config {
+  type: "table",
+  schema: "features",
+  name: "engineer_features_" + dataform.projectConfig.vars.service_id,
+  description: "全サービス共通資格特徴量と特定サービス依存特徴量をマージしたテーブル",
+  tags: ["service_features_pipeline"],
+  dependencies: ["common_features", "service_features_" + dataform.projectConfig.vars.service_id],
+  assertions: {
+    uniqueKey: ["user_id"],
+    nonNull: ["user_id", "is_practical_level", "target_service_id"],
+    rowConditions: [
+      "is_practical_level IN (0, 1)",
+      "gcp_experience_years >= 0.0",
+      "weighted_gcp_cert_score >= 0.0",
+      "google_cloud_total_experience_years >= 0.0"
+    ]
+  }
+}
+
+SELECT
+  sf.*,
+  cf.* EXCEPT (user_id)
+FROM
+  ${ref("service_features_" + dataform.projectConfig.vars.service_id)} AS sf
+LEFT JOIN
+  ${ref("common_features")} AS cf
+  ON sf.user_id = cf.user_id

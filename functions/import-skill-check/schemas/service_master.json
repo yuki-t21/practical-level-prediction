@@ -1,0 +1,5 @@
+[
+  {"name": "service_id", "type": "INTEGER", "mode": "REQUIRED", "description": "サービスID (1からの連番)"},
+  {"name": "service_name", "type": "STRING", "mode": "REQUIRED", "description": "サービス名 (例: AlloyDB)"},
+  {"name": "created_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "作成日時"}
+]

@@ -1,0 +1,16 @@
+config {
+  type: "declaration",
+  database: "YOUR_PROJECT_ID",
+  schema: "other_team_dataset",
+  name: "github_metrics",
+  description: "他チームが管理する、サービス別の技術者GitHubアクティビティ・メトリクス",
+  columns: {
+    user_id: "ユーザーID",
+    google_cloud_service_id: "Google Cloud サービスID",
+    public_repos: "そのサービスを利用している公開リポジトリ数",
+    total_stars: "そのサービスを利用しているリポジトリのスター獲得合計数",
+    total_commits: "そのサービスを利用しているリポジトリのコミット合計数",
+    created_at: "レコード作成日時",
+    updated_at: "レコード更新日時"
+  }
+}

@@ -6,7 +6,14 @@ import main
 # Mock client globals early to avoid DefaultCredentialsError during import
 main.bq_client = MagicMock()
 main.storage_client = MagicMock()
-from main import flatten_shap_attributions, export_prediction
+from main import (
+    flatten_shap_attributions,
+    export_prediction,
+    extract_service_id,
+    fetch_service_name_mapping,
+    run_explain_predict,
+    upload_to_gcs,
+)
 
 
 class TestExportPrediction(unittest.TestCase):
@@ -202,6 +209,74 @@ class TestExportPrediction(unittest.TestCase):
         explain_query = [q for q in called_args if "ML.EXPLAIN_PREDICT" in q][0]
         self.assertIn("ml_models.engineer_skill_model_cloud_run", explain_query)
         self.assertIn("features.engineer_features_cloud_run", explain_query)
+
+    def test_extract_service_id(self):
+        # Simple numeric ID
+        self.assertEqual(extract_service_id("targets_123_20260614.csv"), "123")
+        self.assertEqual(extract_service_id("targets_1_2026.csv"), "1")
+        # Legacy named ID
+        self.assertEqual(
+            extract_service_id("targets_cloud_run_20260614.csv"), "cloud_run"
+        )
+        # Edge cases and fallback
+        self.assertEqual(extract_service_id("invalid_name.csv"), "1")
+
+    def test_fetch_service_name_mapping(self):
+        mock_bq = MagicMock()
+        mock_row_1 = MagicMock()
+        mock_row_1.service_id = "1"
+        mock_row_1.service_name = "App Engine"
+        mock_row_2 = MagicMock()
+        mock_row_2.service_id = 2
+        mock_row_2.service_name = "Cloud Run"
+
+        mock_job = MagicMock()
+        mock_job.result.return_value = [mock_row_1, mock_row_2]
+        mock_bq.query.return_value = mock_job
+
+        mapping = fetch_service_name_mapping(mock_bq, "test-project")
+        self.assertEqual(mapping, {1: "App Engine", 2: "Cloud Run"})
+
+    def test_run_explain_predict(self):
+        mock_bq = MagicMock()
+        mock_job = MagicMock()
+        mock_bq.query.return_value = mock_job
+        mock_results = MagicMock()
+        mock_job.result.return_value = mock_results
+
+        results = run_explain_predict(
+            mock_bq,
+            project_id="test-project",
+            model_dataset="ml_models",
+            model_name="model_1",
+            features_dataset="features",
+            features_table="table_1",
+            user_ids=["user_1", "user_2"],
+        )
+        self.assertEqual(results, mock_results)
+        mock_bq.query.assert_called_once()
+
+    def test_upload_to_gcs(self):
+        mock_storage = MagicMock()
+        mock_bucket = MagicMock()
+        mock_blob = MagicMock()
+        mock_storage.bucket.return_value = mock_bucket
+        mock_bucket.blob.return_value = mock_blob
+
+        upload_to_gcs(
+            mock_storage,
+            bucket_name="my-bucket",
+            destination_file_name="output.xlsx",
+            data_bytes=b"dummy-data",
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+        mock_storage.bucket.assert_called_once_with("my-bucket")
+        mock_bucket.blob.assert_called_once_with("output.xlsx")
+        mock_blob.upload_from_string.assert_called_once_with(
+            b"dummy-data",
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
 
 if __name__ == "__main__":

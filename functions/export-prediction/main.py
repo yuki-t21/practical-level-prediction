@@ -117,6 +117,168 @@ def flatten_shap_attributions(rows) -> pd.DataFrame:
     return pd.DataFrame(flat_data)
 
 
+def extract_service_id(file_name: str) -> str:
+    """
+    ファイル名からサービス ID を抽出します。
+
+    Parameters
+    ----------
+    file_name : str
+        GCS のトリガーファイル名（例: "targets_1_20260614.csv"）。
+
+    Returns
+    -------
+    str
+        抽出されたサービス ID（例: "1" または "cloud_run"）。
+    """
+    base_name = os.path.splitext(os.path.basename(file_name))[0]
+    match = re.match(r"targets_(\d+)", base_name)
+    if match:
+        return match.group(1)
+    elif base_name.startswith("targets_"):
+        tmp = base_name[len("targets_") :]
+        parts = tmp.split("_")
+        # Remove date/time like numeric parts from the end
+        while parts and (
+            parts[-1].isdigit() or len(parts[-1]) == 6 or len(parts[-1]) == 8
+        ):
+            parts.pop()
+        return "_".join(parts)
+    return "1"  # Fallback
+
+
+def fetch_service_name_mapping(bq_client, project_id: str) -> dict:
+    """
+    BigQuery の raw_data.service_master テーブルから
+    サービス ID とサービス名のマッピング情報を取得します。
+
+    Parameters
+    ----------
+    bq_client : google.cloud.bigquery.Client
+        BigQuery クライアント。
+    project_id : str
+        GCP プロジェクト ID。
+
+    Returns
+    -------
+    dict
+        サービス ID をキー、サービス名を値とする辞書。
+    """
+    service_mapping = {}
+    try:
+        mapping_query = f"SELECT service_id, service_name FROM `{project_id}.raw_data.service_master`"
+        mapping_job = bq_client.query(mapping_query)
+        mapping_rows = mapping_job.result()
+        for r in mapping_rows:
+            try:
+                service_mapping[int(r.service_id)] = r.service_name
+            except (ValueError, TypeError):
+                service_mapping[r.service_id] = r.service_name
+        logger.info(f"Loaded {len(service_mapping)} service names from service_master.")
+    except Exception as me:
+        logger.warning(f"Could not load service_master for mapping. Error: {str(me)}")
+    return service_mapping
+
+
+def run_explain_predict(
+    bq_client,
+    project_id: str,
+    model_dataset: str,
+    model_name: str,
+    features_dataset: str,
+    features_table: str,
+    user_ids: list[str],
+):
+    """
+    BigQuery ML の ML.EXPLAIN_PREDICT クエリを実行して、
+    バッチ予測結果と SHAP 特徴量重要度を取得します。
+
+    Parameters
+    ----------
+    bq_client : google.cloud.bigquery.Client
+        BigQuery クライアント。
+    project_id : str
+        GCP プロジェクト ID。
+    model_dataset : str
+        予測モデルが配置されているデータセット名。
+    model_name : str
+        予測モデル名。
+    features_dataset : str
+        特徴量テーブルが配置されているデータセット名。
+    features_table : str
+        特徴量テーブル名。
+    user_ids : list of str
+        予測対象のユーザー ID リスト。
+
+    Returns
+    -------
+    google.cloud.bigquery.table.RowIterator
+        クエリ結果の行イテレータ。
+    """
+    query = f"""
+    SELECT
+      f.*,
+      p.predicted_is_practical_level,
+      p.probability,
+      p.top_feature_attributions
+    FROM
+      ML.EXPLAIN_PREDICT(
+        MODEL `{project_id}.{model_dataset}.{model_name}`,
+        (
+          SELECT * FROM `{project_id}.{features_dataset}.{features_table}`
+          WHERE user_id IN UNNEST(@user_ids)
+        ),
+        STRUCT(5 AS top_k_features)
+      ) AS p
+    JOIN
+      `{project_id}.{features_dataset}.{features_table}` AS f
+    ON
+      p.user_id = f.user_id
+    """
+
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[bigquery.ArrayQueryParameter("user_ids", "STRING", user_ids)]
+    )
+
+    logger.info("Executing ML.EXPLAIN_PREDICT query in BigQuery...")
+    query_job = bq_client.query(query, job_config=job_config)
+    return query_job.result()
+
+
+def upload_to_gcs(
+    storage_client,
+    bucket_name: str,
+    destination_file_name: str,
+    data_bytes: bytes,
+    content_type: str,
+) -> None:
+    """
+    バイトデータを GCS バケットへアップロードします。
+
+    Parameters
+    ----------
+    storage_client : google.cloud.storage.Client
+        Cloud Storage クライアント。
+    bucket_name : str
+        アップロード先 GCS バケット名。
+    destination_file_name : str
+        アップロード先のオブジェクトキー（ファイル名）。
+    data_bytes : bytes
+        アップロードするバイトデータ。
+    content_type : str
+        アップロードデータの MIME タイプ。
+
+    Returns
+    -------
+    None
+    """
+    dest_bucket = storage_client.bucket(bucket_name)
+    dest_blob = dest_bucket.blob(destination_file_name)
+    logger.info(f"Uploading file to gs://{bucket_name}/{destination_file_name}")
+    dest_blob.upload_from_string(data_bytes, content_type=content_type)
+    logger.info("Upload completed successfully.")
+
+
 @functions_framework.cloud_event
 def export_prediction(cloud_event):
     """
@@ -182,44 +344,12 @@ def export_prediction(cloud_event):
             logger.warning("No valid user IDs found in CSV. Skipping prediction.")
             return
 
-        # Extract service_id from file_name (e.g. targets_1_20260614.csv -> 1)
-        base_name = os.path.splitext(os.path.basename(file_name))[0]
-        match = re.match(r"targets_(\d+)", base_name)
-        if match:
-            service_id = match.group(1)
-        elif base_name.startswith("targets_"):
-            tmp = base_name[len("targets_") :]
-            parts = tmp.split("_")
-            # Remove date/time like numeric parts from the end
-            while parts and (
-                parts[-1].isdigit() or len(parts[-1]) == 6 or len(parts[-1]) == 8
-            ):
-                parts.pop()
-            service_id = "_".join(parts)
-        else:
-            service_id = "1"  # Fallback
-
+        # Extract service_id and map to service_name
+        service_id = extract_service_id(file_name)
         logger.info(f"Extracted service_id: {service_id}")
         model_name = f"engineer_skill_model_{service_id}"
 
-        # 2.5 Retrieve service_master table to map service_id to service_name
-        service_mapping = {}
-        try:
-            mapping_query = f"SELECT service_id, service_name FROM `{PROJECT_ID}.raw_data.service_master`"
-            mapping_job = get_bq_client().query(mapping_query)
-            mapping_rows = mapping_job.result()
-            for r in mapping_rows:
-                try:
-                    service_mapping[int(r.service_id)] = r.service_name
-                except (ValueError, TypeError):
-                    service_mapping[r.service_id] = r.service_name
-            logger.info(
-                f"Loaded {len(service_mapping)} service names from service_master."
-            )
-        except Exception as me:
-            logger.warning(
-                f"Could not load service_master for mapping. Error: {str(me)}"
-            )
+        service_mapping = fetch_service_name_mapping(get_bq_client(), PROJECT_ID)
 
         # Safely convert service_id to int key if possible
         try:
@@ -232,39 +362,16 @@ def export_prediction(cloud_event):
         )
 
         # 3. Query ML.EXPLAIN_PREDICT
-        # Note: BQ ML.EXPLAIN_PREDICT returns probability and top_feature_attributions.
-        # We join back to the features table to get all feature columns for value lookup.
         features_table_with_suffix = f"{FEATURES_TABLE}_{service_id}"
-        query = f"""
-        SELECT
-          f.*,
-          p.predicted_is_practical_level,
-          p.probability,
-          p.top_feature_attributions
-        FROM
-          ML.EXPLAIN_PREDICT(
-            MODEL `{PROJECT_ID}.{MODEL_DATASET}.{model_name}`,
-            (
-              SELECT * FROM `{PROJECT_ID}.{FEATURES_DATASET}.{features_table_with_suffix}`
-              WHERE user_id IN UNNEST(@user_ids)
-            ),
-            STRUCT(5 AS top_k_features)
-          ) AS p
-        JOIN
-          `{PROJECT_ID}.{FEATURES_DATASET}.{features_table_with_suffix}` AS f
-        ON
-          p.user_id = f.user_id
-        """
-
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ArrayQueryParameter("user_ids", "STRING", user_ids)
-            ]
+        results = run_explain_predict(
+            get_bq_client(),
+            PROJECT_ID,
+            MODEL_DATASET,
+            model_name,
+            FEATURES_DATASET,
+            features_table_with_suffix,
+            user_ids,
         )
-
-        logger.info("Executing ML.EXPLAIN_PREDICT query in BigQuery...")
-        query_job = get_bq_client().query(query, job_config=job_config)
-        results = query_job.result()  # Wait for query to complete
         logger.info(
             f"Query completed. Total predictions retrieved: {results.total_rows}"
         )
@@ -281,24 +388,20 @@ def export_prediction(cloud_event):
         output_buffer = io.BytesIO()
         with pd.ExcelWriter(output_buffer, engine="openpyxl") as writer:
             df_flat.to_excel(writer, index=False, sheet_name="Predictions")
-        output_buffer.seek(0)
+        output_bytes = output_buffer.getvalue()
 
         # 6. Upload Excel file to destination GCS bucket
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         base_name = os.path.splitext(os.path.basename(file_name))[0]
         output_file_name = f"predictions_{base_name}_{timestamp}.xlsx"
 
-        dest_bucket = get_storage_client().bucket(OUTPUT_BUCKET_NAME)
-        dest_blob = dest_bucket.blob(output_file_name)
-
-        logger.info(
-            f"Uploading output Excel to gs://{OUTPUT_BUCKET_NAME}/{output_file_name}"
+        upload_to_gcs(
+            get_storage_client(),
+            OUTPUT_BUCKET_NAME,
+            output_file_name,
+            output_bytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        dest_blob.upload_from_file(
-            output_buffer,
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-        logger.info("Upload completed successfully.")
 
     except Exception as e:
         logger.error(f"Error during export prediction process: {str(e)}", exc_info=True)

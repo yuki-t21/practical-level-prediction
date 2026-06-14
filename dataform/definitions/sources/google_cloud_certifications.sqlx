@@ -1,0 +1,14 @@
+config {
+  type: "declaration",
+  schema: "other_team_dataset",
+  name: "google_cloud_certifications",
+  description: "Google Cloud 認定資格マスター",
+  columns: {
+    certification_id: "資格ID (主キー)",
+    cert_level_id: "資格レベルID (certification_levels への外部キー)",
+    certification_name: "資格名 (例: Professional Cloud Architect)",
+    validity_years: "有効期間 (年数)",
+    created_at: "作成日時",
+    updated_at: "更新日時"
+  }
+}

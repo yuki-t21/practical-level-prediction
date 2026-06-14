@@ -1,0 +1,8 @@
+dataformCoreVersion: 3.0.0
+defaultProject: YOUR_PROJECT_ID
+defaultDataset: features
+defaultLocation: asia-northeast1
+defaultAssertionDataset: dataform_assertions
+vars:
+  service_id: "1"
+  is_test: "true"

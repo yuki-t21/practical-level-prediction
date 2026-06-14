@@ -1,0 +1,12 @@
+config {
+  type: "declaration",
+  schema: "raw_data",
+  name: "skill_check_results",
+  description: "スキルチェック評価結果（縦持ち）",
+  columns: {
+    user_id: "ユーザーID",
+    service_id: "サービスID",
+    is_practical_level: "実務レベルフラグ (1: 実務レベル, 0: 実務レベルでない)",
+    updated_at: "更新日時"
+  }
+}

@@ -1,0 +1,211 @@
+config {
+  type: "operations",
+  schema: "features",
+  name: "common_features",
+  description: "全サービス共通の資格・全体メトリクス特徴量テーブル",
+  tags: ["common_features_pipeline"],
+  dependencies: ["level_weights"],
+  hasOutput: true
+}
+
+DECLARE cert_pivot_cols STRING;
+DECLARE cert_select_cols STRING;
+DECLARE level_pivot_cols STRING;
+DECLARE level_select_cols STRING;
+
+-- 1. 資格 PIVOT
+SET cert_pivot_cols = (
+  SELECT STRING_AGG(CONCAT("'", certification_id, "' AS has_cert_", certification_id), ", ")
+  FROM ${ref("other_team_dataset", "google_cloud_certifications")}
+);
+SET cert_select_cols = (
+  SELECT STRING_AGG(CONCAT("COALESCE(cp.has_cert_", certification_id, ", 0) AS has_cert_", certification_id), ", ")
+  FROM ${ref("other_team_dataset", "google_cloud_certifications")}
+);
+
+-- 2. レベル PIVOT
+SET level_pivot_cols = (
+  SELECT STRING_AGG(CONCAT("'", cert_level_id, "' AS num_certs_", cert_level_id), ", ")
+  FROM ${ref("other_team_dataset", "certification_levels")}
+);
+SET level_select_cols = (
+  SELECT STRING_AGG(CONCAT("COALESCE(lp.num_certs_", cert_level_id, ", 0) AS num_certs_", cert_level_id), ", ")
+  FROM ${ref("other_team_dataset", "certification_levels")}
+);
+
+-- フォールバック（データがない場合）
+IF cert_pivot_cols IS NULL THEN
+  SET cert_pivot_cols
+  = "'pca' AS has_cert_pca, 'pde' AS has_cert_pde, 'ace' AS has_cert_ace, 'pcd' AS has_cert_pcd, 'pcse' AS has_cert_pcse, 'pcne' AS has_cert_pcne, 'pcdoe' AS has_cert_pcdoe, 'pmle' AS has_cert_pmle, 'cdl' AS has_cert_cdl";
+  SET cert_select_cols
+  = "COALESCE(cp.has_cert_pca, 0) AS has_cert_pca, COALESCE(cp.has_cert_pde, 0) AS has_cert_pde, COALESCE(cp.has_cert_ace, 0) AS has_cert_ace, COALESCE(cp.has_cert_pcd, 0) AS has_cert_pcd, COALESCE(cp.has_cert_pcse, 0) AS has_cert_pcse, COALESCE(cp.has_cert_pcne, 0) AS has_cert_pcne, COALESCE(cp.has_cert_pcdoe, 0) AS has_cert_pcdoe, COALESCE(cp.has_cert_pmle, 0) AS has_cert_pmle, COALESCE(cp.has_cert_cdl, 0) AS has_cert_cdl";
+END IF;
+
+IF level_pivot_cols IS NULL THEN
+  SET level_pivot_cols
+  = "'professional' AS num_certs_professional, 'associate' AS num_certs_associate, 'foundational' AS num_certs_foundational";
+  SET level_select_cols
+  = "COALESCE(lp.num_certs_professional, 0) AS num_certs_professional, COALESCE(lp.num_certs_associate, 0) AS num_certs_associate, COALESCE(lp.num_certs_foundational, 0) AS num_certs_foundational";
+END IF;
+
+EXECUTE IMMEDIATE FORMAT(
+  """
+CREATE OR REPLACE TABLE %s AS
+WITH all_users AS (
+  SELECT DISTINCT user_id
+  FROM
+    %s
+),
+
+cert_base AS (
+  SELECT
+    uc.user_id,
+    DATE_DIFF(CURRENT_DATE(), MIN(uc.first_acquisition_date), DAY) / 365.25 AS gcp_experience_years,
+    COUNTIF(DATE_ADD(uc.latest_acquisition_date, INTERVAL c.validity_years YEAR) >= CURRENT_DATE())
+      AS total_active_certs,
+    SUM(
+      IF(
+        DATE_ADD(uc.latest_acquisition_date, INTERVAL c.validity_years YEAR) >= CURRENT_DATE(),
+        COALESCE(w.weight, 1.0) * EXP(-0.00095 * DATE_DIFF(CURRENT_DATE(), uc.latest_acquisition_date, DAY)),
+        0.0
+      )
+    ) AS weighted_gcp_cert_score
+  FROM
+    %s AS uc
+  INNER JOIN
+    %s AS c
+    ON uc.certification_id = c.certification_id
+  INNER JOIN
+    %s AS cl
+    ON c.cert_level_id = cl.cert_level_id
+  LEFT JOIN
+    %s AS w
+    ON cl.cert_level_id = w.cert_level_id
+  GROUP BY
+    uc.user_id
+),
+
+cert_pivoted AS (
+  SELECT * FROM (
+    SELECT
+      uc.user_id,
+      c.certification_id,
+      IF(DATE_ADD(uc.latest_acquisition_date, INTERVAL c.validity_years YEAR) >= CURRENT_DATE(), 1, 0) AS has_cert
+    FROM
+      %s AS uc
+    INNER JOIN
+      %s AS c
+      ON uc.certification_id = c.certification_id
+  )
+  PIVOT (
+    MAX(has_cert)
+    FOR certification_id IN ( %s )
+  )
+),
+
+level_pivoted AS (
+  SELECT * FROM (
+    SELECT
+      uc.user_id,
+      c.cert_level_id,
+      IF(DATE_ADD(uc.latest_acquisition_date, INTERVAL c.validity_years YEAR) >= CURRENT_DATE(), 1, 0) AS is_active
+    FROM
+      %s AS uc
+    INNER JOIN
+      %s AS c
+      ON uc.certification_id = c.certification_id
+  )
+  PIVOT (
+    SUM(is_active)
+    FOR cert_level_id IN ( %s )
+  )
+),
+
+github_overall AS (
+  SELECT
+    user_id,
+    SUM(COALESCE(public_repos, 0)) AS total_github_repos,
+    SUM(COALESCE(total_stars, 0)) AS total_github_stars,
+    SUM(COALESCE(total_commits, 0)) AS total_github_commits
+  FROM
+    %s
+  GROUP BY
+    user_id
+),
+
+blog_overall AS (
+  SELECT
+    user_id,
+    SUM(COALESCE(article_count, 0)) AS total_blog_articles,
+    SUM(COALESCE(reaction_count, 0)) AS total_blog_reactions
+  FROM
+    %s
+  GROUP BY
+    user_id
+),
+
+resume_overall AS (
+  SELECT
+    user_id,
+    MAX(experience_years) AS google_cloud_total_experience_years,
+    ARRAY_AGG(STRUCT(experience_years, reliability_score) ORDER BY experience_years DESC, reliability_score DESC LIMIT 1
+    )[OFFSET(0)].reliability_score AS google_cloud_reliability_score
+  FROM
+    %s
+  GROUP BY
+    user_id
+)
+
+SELECT
+  u.user_id,
+  COALESCE(cb.gcp_experience_years, 0.0) AS gcp_experience_years,
+  COALESCE(cb.total_active_certs, 0) AS total_active_certs,
+  %s,
+  COALESCE(cb.weighted_gcp_cert_score, 0.0) AS weighted_gcp_cert_score,
+  %s,
+  COALESCE(g.total_github_repos, 0) AS total_github_repos,
+  COALESCE(g.total_github_stars, 0) AS total_github_stars,
+  COALESCE(g.total_github_commits, 0) AS total_github_commits,
+  COALESCE(b.total_blog_articles, 0) AS total_blog_articles,
+  COALESCE(b.total_blog_reactions, 0) AS total_blog_reactions,
+  COALESCE(r.google_cloud_total_experience_years, 0.0) AS google_cloud_total_experience_years,
+  COALESCE(r.google_cloud_reliability_score, 0) AS google_cloud_reliability_score
+FROM
+  all_users AS u
+LEFT JOIN
+  cert_base AS cb
+  ON u.user_id = cb.user_id
+LEFT JOIN
+  cert_pivoted AS cp
+  ON u.user_id = cp.user_id
+LEFT JOIN
+  level_pivoted AS lp
+  ON u.user_id = lp.user_id
+LEFT JOIN
+  github_overall AS g
+  ON u.user_id = g.user_id
+LEFT JOIN
+  blog_overall AS b
+  ON u.user_id = b.user_id
+LEFT JOIN
+  resume_overall AS r
+  ON u.user_id = r.user_id
+""",
+  "${self()}",
+  "${ref("raw_data", "skill_check_results")}",
+  "${ref("other_team_dataset", "user_certifications")}",
+  "${ref("other_team_dataset", "google_cloud_certifications")}",
+  "${ref("other_team_dataset", "certification_levels")}",
+  "${ref("level_weights")}",
+  "${ref("other_team_dataset", "user_certifications")}",
+  "${ref("other_team_dataset", "google_cloud_certifications")}",
+  cert_pivot_cols,
+  "${ref("other_team_dataset", "user_certifications")}",
+  "${ref("other_team_dataset", "google_cloud_certifications")}",
+  level_pivot_cols,
+  "${ref("other_team_dataset", "github_metrics")}",
+  "${ref("other_team_dataset", "tech_blog_metrics")}",
+  "${ref("other_team_dataset", "resumes")}",
+  level_select_cols,
+  cert_select_cols
+);

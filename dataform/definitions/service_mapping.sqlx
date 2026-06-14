@@ -1,0 +1,72 @@
+config {
+  type: "incremental",
+  schema: "features",
+  name: "service_mapping",
+  description: "service_master と google_cloud_services を AI.GENERATE_EMBEDDING で照合したマッピングテーブル (履歴保持)",
+  tags: ["common_features_pipeline"],
+  columns: {
+    service_id: "自チームの予測対象サービスID",
+    service_name: "自チームの予測対象サービス名",
+    google_cloud_service_id: "他チームのGoogle CloudサービスID",
+    google_cloud_service_name: "他チームのGoogle Cloudサービス名",
+    updated_at: "レコード作成/更新日時"
+  }
+}
+
+${dataform.projectConfig.vars.is_test === 'true' ? `
+  -- テスト用の簡易テキスト部分一致マッピング (固定のタイムスタンプを使用)
+  SELECT
+    sm.service_id,
+    sm.service_name,
+    gcs.google_cloud_service_id,
+    gcs.google_cloud_service_name,
+    TIMESTAMP('2026-06-14 15:00:00') AS updated_at
+  FROM
+    ${ref("raw_data", "service_master")} AS sm
+  CROSS JOIN
+    ${ref("other_team_dataset", "google_cloud_services")} AS gcs
+  WHERE
+    LOWER(gcs.google_cloud_service_name) LIKE CONCAT('%', LOWER(sm.service_name), '%')
+    OR LOWER(sm.service_name) LIKE CONCAT('%', LOWER(gcs.google_cloud_service_name), '%')
+` : `
+  -- 本番用の AI.GENERATE_EMBEDDING を用いた類似度マッピング
+  WITH service_embeddings AS (
+    SELECT
+      sm.service_id,
+      sm.service_name,
+      emb.text_embedding AS embedding
+    FROM
+      ${ref("raw_data", "service_master")} AS sm,
+      UNNEST(AI.GENERATE_EMBEDDING(
+        connection_name => '${dataform.projectConfig.defaultDatabase}.asia-northeast1.vertex_connection',
+        model_name => 'google/gemini-embedding-2',
+        content => sm.service_name
+      )) AS emb
+  ),
+  
+  gc_service_embeddings AS (
+    SELECT
+      gcs.google_cloud_service_id,
+      gcs.google_cloud_service_name,
+      emb.text_embedding AS embedding
+    FROM
+      ${ref("other_team_dataset", "google_cloud_services")} AS gcs,
+      UNNEST(AI.GENERATE_EMBEDDING(
+        connection_name => '${dataform.projectConfig.defaultDatabase}.asia-northeast1.vertex_connection',
+        model_name => 'google/gemini-embedding-2',
+        content => gcs.google_cloud_service_name
+      )) AS emb
+  )
+  
+  SELECT
+    se.service_id,
+    se.service_name,
+    gse.google_cloud_service_id,
+    gse.google_cloud_service_name,
+    CURRENT_TIMESTAMP() AS updated_at
+  FROM
+    service_embeddings AS se
+  CROSS JOIN
+    gc_service_embeddings AS gse
+  QUALIFY ROW_NUMBER() OVER(PARTITION BY se.service_id ORDER BY ML.DISTANCE(se.embedding, gse.embedding, 'COSINE') ASC) = 1
+`}

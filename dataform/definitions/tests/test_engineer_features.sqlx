@@ -1,0 +1,156 @@
+config {
+  type: "test",
+  dataset: "engineer_features_1"
+}
+
+input "common_features" {
+  SELECT
+    "user_A" AS user_id,
+    2.5 AS gcp_experience_years,
+    3 AS total_active_certs,
+    2 AS num_certs_professional,
+    1 AS num_certs_associate,
+    0 AS num_certs_foundational,
+    4.5 AS weighted_gcp_cert_score,
+    -- 資格フラグ
+    1 AS has_cert_pca,
+    0 AS has_cert_pde,
+    1 AS has_cert_ace,
+    0 AS has_cert_pcd,
+    0 AS has_cert_pcse,
+    0 AS has_cert_pcne,
+    0 AS has_cert_pcdoe,
+    0 AS has_cert_pmle,
+    1 AS has_cert_cdl,
+    -- 全体メトリクス
+    12 AS total_github_repos,
+    25 AS total_github_stars,
+    150 AS total_github_commits,
+    5 AS total_blog_articles,
+    50 AS total_blog_reactions,
+    -- Google Cloud全体経歴
+    5.5 AS google_cloud_total_experience_years,
+    3 AS google_cloud_reliability_score
+  UNION ALL
+  SELECT
+    "user_B" AS user_id,
+    0.0 AS gcp_experience_years,
+    0 AS total_active_certs,
+    0 AS num_certs_professional,
+    0 AS num_certs_associate,
+    0 AS num_certs_foundational,
+    0.0 AS weighted_gcp_cert_score,
+    0 AS has_cert_pca,
+    0 AS has_cert_pde,
+    0 AS has_cert_ace,
+    0 AS has_cert_pcd,
+    0 AS has_cert_pcse,
+    0 AS has_cert_pcne,
+    0 AS has_cert_pcdoe,
+    0 AS has_cert_pmle,
+    0 AS has_cert_cdl,
+    0 AS total_github_repos,
+    0 AS total_github_stars,
+    0 AS total_github_commits,
+    0 AS total_blog_articles,
+    0 AS total_blog_reactions,
+    0.0 AS google_cloud_total_experience_years,
+    0 AS google_cloud_reliability_score
+}
+
+input "service_features_1" {
+  SELECT
+    "user_A" AS user_id,
+    1 AS is_practical_level,
+    "1" AS target_service_id,
+    3.5 AS resume_experience_years,
+    3 AS resume_reliability_score,
+    5 AS github_public_repos,
+    10 AS github_stars,
+    100 AS github_commits,
+    3 AS blog_article_count,
+    30 AS blog_reaction_count
+  UNION ALL
+  SELECT
+    "user_B" AS user_id,
+    0 AS is_practical_level,
+    "1" AS target_service_id,
+    0.0 AS resume_experience_years,
+    0 AS resume_reliability_score,
+    0 AS github_public_repos,
+    0 AS github_stars,
+    0 AS github_commits,
+    0 AS blog_article_count,
+    0 AS blog_reaction_count
+}
+
+SELECT
+  "user_A" AS user_id,
+  1 AS is_practical_level,
+  "1" AS target_service_id,
+  3.5 AS resume_experience_years,
+  3 AS resume_reliability_score,
+  5 AS github_public_repos,
+  10 AS github_stars,
+  100 AS github_commits,
+  3 AS blog_article_count,
+  30 AS blog_reaction_count,
+  2.5 AS gcp_experience_years,
+  3 AS total_active_certs,
+  2 AS num_certs_professional,
+  1 AS num_certs_associate,
+  0 AS num_certs_foundational,
+  4.5 AS weighted_gcp_cert_score,
+  -- 資格フラグ
+  1 AS has_cert_pca,
+  0 AS has_cert_pde,
+  1 AS has_cert_ace,
+  0 AS has_cert_pcd,
+  0 AS has_cert_pcse,
+  0 AS has_cert_pcne,
+  0 AS has_cert_pcdoe,
+  0 AS has_cert_pmle,
+  1 AS has_cert_cdl,
+  -- 全体メトリクス
+  12 AS total_github_repos,
+  25 AS total_github_stars,
+  150 AS total_github_commits,
+  5 AS total_blog_articles,
+  50 AS total_blog_reactions,
+  -- Google Cloud全体経歴
+  5.5 AS google_cloud_total_experience_years,
+  3 AS google_cloud_reliability_score
+UNION ALL
+SELECT
+  "user_B" AS user_id,
+  0 AS is_practical_level,
+  "1" AS target_service_id,
+  0.0 AS resume_experience_years,
+  0 AS resume_reliability_score,
+  0 AS github_public_repos,
+  0 AS github_stars,
+  0 AS github_commits,
+  0 AS blog_article_count,
+  0 AS blog_reaction_count,
+  0.0 AS gcp_experience_years,
+  0 AS total_active_certs,
+  0 AS num_certs_professional,
+  0 AS num_certs_associate,
+  0 AS num_certs_foundational,
+  0.0 AS weighted_gcp_cert_score,
+  0 AS has_cert_pca,
+  0 AS has_cert_pde,
+  0 AS has_cert_ace,
+  0 AS has_cert_pcd,
+  0 AS has_cert_pcse,
+  0 AS has_cert_pcne,
+  0 AS has_cert_pcdoe,
+  0 AS has_cert_pmle,
+  0 AS has_cert_cdl,
+  0 AS total_github_repos,
+  0 AS total_github_stars,
+  0 AS total_github_commits,
+  0 AS total_blog_articles,
+  0 AS total_blog_reactions,
+  0.0 AS google_cloud_total_experience_years,
+  0 AS google_cloud_reliability_score

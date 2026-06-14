@@ -1,0 +1,18 @@
+config {
+  type: "operations",
+  hasOutput: true,
+  schema: "ml_models",
+  name: "train_model_operation",
+  tags: ["service_features_pipeline"],
+  dependencies: [ "engineer_features_" + dataform.projectConfig.vars.service_id ]
+}
+
+CREATE OR REPLACE MODEL `ml_models.engineer_skill_model_${dataform.projectConfig.vars.service_id}`
+OPTIONS (
+  MODEL_TYPE = 'BOOSTED_TREE_CLASSIFIER',
+  INPUT_LABEL_COLS = ['is_practical_level'],
+  AUTO_CLASS_WEIGHTS = TRUE
+) AS
+SELECT * EXCEPT (user_id, target_service_id)
+FROM
+  ${ref("engineer_features_" + dataform.projectConfig.vars.service_id)}

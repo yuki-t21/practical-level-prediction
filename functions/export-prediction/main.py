@@ -18,6 +18,14 @@ storage_client = None
 
 
 def get_bq_client():
+    """
+    BigQuery クライアントを遅延初期化して返します。
+
+    Returns
+    -------
+    google.cloud.bigquery.Client
+        初期化済みの BigQuery クライアント。
+    """
     global bq_client
     if bq_client is None:
         bq_client = bigquery.Client()
@@ -25,6 +33,14 @@ def get_bq_client():
 
 
 def get_storage_client():
+    """
+    Cloud Storage クライアントを遅延初期化して返します。
+
+    Returns
+    -------
+    google.cloud.storage.Client
+        初期化済みの Cloud Storage クライアント。
+    """
     global storage_client
     if storage_client is None:
         storage_client = storage.Client()
@@ -41,8 +57,25 @@ OUTPUT_BUCKET_NAME = os.environ.get("OUTPUT_BUCKET_NAME")
 
 def flatten_shap_attributions(rows) -> pd.DataFrame:
     """
-    Flatten nested top_feature_attributions from ML.EXPLAIN_PREDICT in a memory-efficient way.
-    Converts list of rows into a flat DataFrame containing features, values, and SHAP values.
+    ML.EXPLAIN_PREDICT が返すネストされた top_feature_attributions をフラット化します。
+
+    各行の上位 5 特徴量について、特徴量名・特徴量値・SHAP 値を個別のカラムに展開し、
+    メモリ効率の良い方式で DataFrame に変換します。
+
+    Parameters
+    ----------
+    rows : google.cloud.bigquery.table.RowIterator
+        ML.EXPLAIN_PREDICT クエリの結果行イテレータ。各行は user_id,
+        predicted_is_practical_level, probability, top_feature_attributions
+        フィールドを含む。
+
+    Returns
+    -------
+    pd.DataFrame
+        フラット化された予測結果の DataFrame。
+        カラム: user_id, predicted_is_practical_level, probability,
+        特徴量1_名前, 特徴量1_値, 特徴量1_SHAP値, ...
+        (上位 5 特徴量分、データが不足する場合は None で補完)
     """
     flat_data = []
 
@@ -86,7 +119,32 @@ def flatten_shap_attributions(rows) -> pd.DataFrame:
 
 @functions_framework.cloud_event
 def export_prediction(cloud_event):
-    """Event-driven Cloud Run Function triggered by CSV target list upload."""
+    """
+    CSV ファイルのアップロードをトリガーに実行されるイベント駆動型 Cloud Run Function。
+
+    GCS バケットに推論対象ユーザーリスト CSV がアップロードされると自動的にトリガーされます。
+    ファイル名からサービス ID を抽出し、BigQuery ML の ML.EXPLAIN_PREDICT を呼び出して
+    バッチ推論と SHAP 重要度を取得します。結果を Excel 形式にフラット化した上で、
+    出力先 GCS バケットへタイムスタンプ付きファイル名でアップロードします。
+
+    Parameters
+    ----------
+    cloud_event : cloudevents.http.CloudEvent
+        GCS オブジェクト作成イベントを表す Cloud Event オブジェクト。
+        data フィールドに bucket 名と object 名 (name) を含む。
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError
+        OUTPUT_BUCKET_NAME 環境変数が未設定の場合、または CSV に
+        user_id カラムが存在しない場合。
+    Exception
+        BigQuery クエリ実行または GCS アップロード時にエラーが発生した場合。
+    """
     data = cloud_event.data
     bucket_name = data.get("bucket")
     file_name = data.get("name")

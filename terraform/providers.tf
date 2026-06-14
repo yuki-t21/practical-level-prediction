@@ -18,6 +18,9 @@ terraform {
       version = "~> 2.0"
     }
   }
+  backend "gcs" {
+    prefix = "terraform/state"
+  }
 }
 
 provider "google" {

@@ -1,0 +1,12 @@
+config {
+  type: "declaration",
+  database: "YOUR_PROJECT_ID",
+  schema: "raw_data",
+  name: "service_master",
+  description: "サービスIDと表示名のマスタテーブル",
+  columns: {
+    service_id: "サービスID (1からの連番)",
+    service_name: "サービス名 (例: AlloyDB)",
+    created_at: "作成日時"
+  }
+}

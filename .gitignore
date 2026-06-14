@@ -1,0 +1,23 @@
+# Executable / Binaries
+bin/
+
+# Terraform
+terraform/.terraform/
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/files/
+.terraform.lock.hcl
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Zip files
+*.zip
+
+# OS files
+.DS_Store

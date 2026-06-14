@@ -1,0 +1,25 @@
+[sqlfluff]
+templater = dataform
+dialect = bigquery
+sql_file_exts = .sql,.sqlx
+# SQLFluff formatting rules
+max_line_length = 120
+
+[sqlfluff:templater:dataform]
+project_id = YOUR_PROJECT_ID
+
+[sqlfluff:rules:capitalisation.keywords]
+# Enforce uppercase SQL keywords
+capitalisation_policy = upper
+
+[sqlfluff:rules:capitalisation.functions]
+# Enforce uppercase function names
+extended_capitalisation_policy = upper
+
+[sqlfluff:rules:capitalisation.literals]
+# Enforce uppercase boolean literals (e.g. TRUE/FALSE)
+capitalisation_policy = upper
+
+[sqlfluff:indentation]
+indent_unit = space
+tab_space_size = 2

@@ -40,6 +40,7 @@
 ```
 practical-level-prediction/
 ├── README.md                   # 本ファイル
+├── AGENTS.md                   # リポジトリ全体の開発ルール
 ├── .github/
 │   ├── pull_request_template.md
 │   └── workflows/
@@ -264,6 +265,7 @@ terraform plan -var="project_id=<your-project-id>"
 
 | ディレクトリ | README | AGENTS.md |
 | :--- | :--- | :--- |
+| (ルート) | [README.md](README.md) | [AGENTS.md](AGENTS.md) |
 | `dataform/` | [dataform/README.md](dataform/README.md) | [dataform/AGENTS.md](dataform/AGENTS.md) |
 | `functions/` | [functions/README.md](functions/README.md) | [functions/AGENTS.md](functions/AGENTS.md) |
 | `terraform/` | [terraform/README.md](terraform/README.md) | [terraform/AGENTS.md](terraform/AGENTS.md) |

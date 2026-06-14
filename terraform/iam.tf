@@ -61,6 +61,13 @@ resource "google_project_iam_member" "eventarc_event_receiver" {
   member  = "serviceAccount:${google_service_account.pipeline_sa.email}"
 }
 
+# Allow the pipeline SA to invoke Cloud Run services (required for Eventarc to route events to Cloud Run Functions)
+resource "google_project_iam_member" "run_invoker" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_service_account.pipeline_sa.email}"
+}
+
 # Grant GCS service agent permission to publish to Pub/Sub (needed for Eventarc GCS triggers)
 resource "google_project_iam_member" "gcs_pubsub_publishing" {
   project = var.project_id

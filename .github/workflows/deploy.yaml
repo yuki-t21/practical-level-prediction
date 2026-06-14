@@ -93,6 +93,6 @@ jobs:
       - name: Terraform Apply
         run: |
           cd terraform
-          terraform init
+          terraform init -backend-config="bucket=terraform-state-${{ secrets.GCP_PROJECT_ID }}"
           terraform apply -auto-approve -var="project_id=${{ secrets.GCP_PROJECT_ID }}"
 

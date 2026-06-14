@@ -1,0 +1,34 @@
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# IDE/Editor configurations
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing / Coverage outputs
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Tool configurations & caches
+.uv/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Sensitive credentials & environment files (Avoid committing secrets)
+.env
+*credentials*.json
+*secret*
+*key*.json

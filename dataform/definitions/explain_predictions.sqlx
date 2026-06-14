@@ -1,0 +1,136 @@
+config {
+  type: "operations",
+  hasOutput: true,
+  schema: "ml_models",
+  name: "explain_predictions_operation",
+  tags: ["service_features_pipeline"],
+  dependencies: ["train_model_operation", "engineer_features_" + dataform.projectConfig.vars.service_id]
+}
+
+DECLARE unpivot_cols STRING;
+DECLARE cast_select_cols STRING;
+
+SET unpivot_cols = (
+  SELECT STRING_AGG(column_name, ", ")
+  FROM `${dataform.projectConfig.defaultDatabase}.features.INFORMATION_SCHEMA.COLUMNS`
+  WHERE table_name = 'engineer_features_${dataform.projectConfig.vars.service_id}'
+    AND column_name NOT IN ('user_id', 'is_practical_level', 'target_service_id')
+);
+
+SET cast_select_cols = (
+  SELECT STRING_AGG(CONCAT("CAST(", column_name, " AS FLOAT64) AS ", column_name), ", ")
+  FROM `${dataform.projectConfig.defaultDatabase}.features.INFORMATION_SCHEMA.COLUMNS`
+  WHERE table_name = 'engineer_features_${dataform.projectConfig.vars.service_id}'
+    AND column_name NOT IN ('user_id', 'is_practical_level', 'target_service_id')
+);
+
+IF unpivot_cols IS NULL THEN
+  SET unpivot_cols = "gcp_experience_years, total_active_certs, num_certs_professional, num_certs_associate, num_certs_foundational, weighted_gcp_cert_score, resume_experience_years, resume_reliability_score, github_public_repos, github_stars, github_commits, blog_article_count, blog_reaction_count, total_github_repos, total_github_stars, total_github_commits, total_blog_articles, total_blog_reactions, google_cloud_total_experience_years, google_cloud_reliability_score";
+  SET cast_select_cols = "CAST(gcp_experience_years AS FLOAT64) AS gcp_experience_years, CAST(total_active_certs AS FLOAT64) AS total_active_certs, CAST(num_certs_professional AS FLOAT64) AS num_certs_professional, CAST(num_certs_associate AS FLOAT64) AS num_certs_associate, CAST(num_certs_foundational AS FLOAT64) AS num_certs_foundational, CAST(weighted_gcp_cert_score AS FLOAT64) AS weighted_gcp_cert_score, CAST(resume_experience_years AS FLOAT64) AS resume_experience_years, CAST(resume_reliability_score AS FLOAT64) AS resume_reliability_score, CAST(github_public_repos AS FLOAT64) AS github_public_repos, CAST(github_stars AS FLOAT64) AS github_stars, CAST(github_commits AS FLOAT64) AS github_commits, CAST(blog_article_count AS FLOAT64) AS blog_article_count, CAST(blog_reaction_count AS FLOAT64) AS blog_reaction_count, CAST(total_github_repos AS FLOAT64) AS total_github_repos, CAST(total_github_stars AS FLOAT64) AS total_github_stars, CAST(total_github_commits AS FLOAT64) AS total_github_commits, CAST(total_blog_articles AS FLOAT64) AS total_blog_articles, CAST(total_blog_reactions AS FLOAT64) AS total_blog_reactions, CAST(google_cloud_total_experience_years AS FLOAT64) AS google_cloud_total_experience_years, CAST(google_cloud_reliability_score AS FLOAT64) AS google_cloud_reliability_score";
+END IF;
+
+EXECUTE IMMEDIATE FORMAT("""
+CREATE OR REPLACE TABLE `ml_models.predictions_and_shaps_%s` AS
+WITH predictions AS (
+  SELECT
+    user_id,
+    predicted_is_practical_level,
+    -- 予測確率 (実務レベルであるクラス1の確率)
+    IF(predicted_is_practical_level = 1, probability, 1.0 - probability) AS probability,
+    attr.feature AS feature_name,
+    attr.attribution AS shap_value
+  FROM
+    ML.EXPLAIN_PREDICT(
+      model `ml_models.engineer_skill_model_%s`,
+      (SELECT * FROM %s),
+      STRUCT(10 AS top_k_features)
+    )
+  LEFT JOIN
+    UNNEST(top_feature_attributions) AS attr
+),
+
+unpivoted_features AS (
+  SELECT
+    user_id,
+    feature_name,
+    feature_value
+  FROM (
+    SELECT
+      user_id,
+      %s
+    FROM
+      %s
+  )
+  UNPIVOT (feature_value FOR feature_name IN ( %s ))
+),
+
+feature_mapping AS (
+  SELECT 'gcp_experience_years' AS feature_name, 'Google Cloud経験年数' AS jp_name UNION ALL
+  SELECT 'total_active_certs', '有効期限内の保有資格数' UNION ALL
+  SELECT 'weighted_gcp_cert_score', '保有資格加重時間減衰スコア' UNION ALL
+  SELECT 'resume_experience_years', 'レジュメ記載のサービス経験年数' UNION ALL
+  SELECT 'resume_reliability_score', '経歴情報の信頼性スコア' UNION ALL
+  SELECT 'github_public_repos', 'GitHub公開リポジトリ数(サービス利用含む)' UNION ALL
+  SELECT 'github_stars', 'GitHub獲得スター合計数(サービス利用含む)' UNION ALL
+  SELECT 'github_commits', 'GitHubコミット合計数(サービス利用含む)' UNION ALL
+  SELECT 'blog_article_count', '技術ブログ記事執筆数(サービス利用含む)' UNION ALL
+  SELECT 'blog_reaction_count', '技術ブログ獲得リアクション合計数' UNION ALL
+  SELECT 'total_github_repos', 'GitHub全体公開リポジトリ数' UNION ALL
+  SELECT 'total_github_stars', 'GitHub全体獲得スター合計数' UNION ALL
+  SELECT 'total_github_commits', 'GitHub全体コミット合計数' UNION ALL
+  SELECT 'total_blog_articles', '技術ブログ全体記事執筆数' UNION ALL
+  SELECT 'total_blog_reactions', '技術ブログ全体獲得リアクション数' UNION ALL
+  SELECT 'google_cloud_total_experience_years', 'Google Cloud全体経歴年数' UNION ALL
+  SELECT 'google_cloud_reliability_score', 'Google Cloud経歴情報の信頼度スコア'
+)
+
+SELECT
+  p.user_id,
+  '%s' AS target_service_id,
+  p.predicted_is_practical_level,
+  p.probability,
+  p.feature_name,
+  COALESCE(
+    m.jp_name,
+    IF(
+      STARTS_WITH(p.feature_name, 'has_cert_'),
+      CONCAT('資格保有フラグ(', COALESCE(cert.certification_name, REGEXP_REPLACE(p.feature_name, '^has_cert_', '')), ')'),
+      IF(
+        STARTS_WITH(p.feature_name, 'num_certs_'),
+        CONCAT(COALESCE(lvl.level_name, REGEXP_REPLACE(p.feature_name, '^num_certs_', '')), '資格数'),
+        p.feature_name
+      )
+    )
+  ) AS feature_japanese_name,
+  COALESCE(u.feature_value, 0.0) AS feature_value,
+  p.shap_value
+FROM
+  predictions AS p
+LEFT JOIN
+  unpivoted_features AS u
+  ON
+    p.user_id = u.user_id
+    AND p.feature_name = u.feature_name
+LEFT JOIN
+  feature_mapping AS m
+  ON
+    p.feature_name = m.feature_name
+LEFT JOIN
+  %s AS cert
+  ON
+    REGEXP_REPLACE(p.feature_name, '^has_cert_', '') = cert.certification_id
+LEFT JOIN
+  %s AS lvl
+  ON
+    REGEXP_REPLACE(p.feature_name, '^num_certs_', '') = lvl.cert_level_id
+""",
+  "${dataform.projectConfig.vars.service_id}",
+  "${dataform.projectConfig.vars.service_id}",
+  "${ref("engineer_features_" + dataform.projectConfig.vars.service_id)}",
+  cast_select_cols,
+  "${ref("engineer_features_" + dataform.projectConfig.vars.service_id)}",
+  unpivot_cols,
+  "${dataform.projectConfig.vars.service_id}",
+  "${ref("other_team_dataset", "google_cloud_certifications")}",
+  "${ref("other_team_dataset", "certification_levels")}"
+);

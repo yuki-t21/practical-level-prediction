@@ -1,0 +1,12 @@
+config {
+  type: "declaration",
+  schema: "other_team_dataset",
+  name: "google_cloud_services",
+  description: "他チームが管理するGoogle Cloudサービス一覧テーブル",
+  columns: {
+    google_cloud_service_id: "Google Cloud サービスID",
+    google_cloud_service_name: "Google Cloud サービス名称 (例: Fully Managed Cloud Run)",
+    created_at: "レコード作成日時",
+    updated_at: "レコード更新日時"
+  }
+}

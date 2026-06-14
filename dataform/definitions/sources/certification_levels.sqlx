@@ -1,0 +1,12 @@
+config {
+  type: "declaration",
+  schema: "other_team_dataset",
+  name: "certification_levels",
+  description: "資格レベルマスター",
+  columns: {
+    cert_level_id: "資格レベルID (主キー)",
+    level_name: "資格レベル (基礎・アソシエイト・プロフェッショナル)",
+    created_at: "作成日時",
+    updated_at: "更新日時"
+  }
+}

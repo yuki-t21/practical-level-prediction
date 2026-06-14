@@ -1,0 +1,112 @@
+config {
+  type: "table",
+  schema: "features",
+  name: "service_features_" + dataform.projectConfig.vars.service_id,
+  description: "特定サービスに依存する縦持ち特徴量テーブル",
+  tags: ["service_features_pipeline"],
+  dependencies: ["service_mapping"],
+  columns: {
+    user_id: "ユーザーID",
+    is_practical_level: "実務レベル判定フラグ (0 or 1)",
+    target_service_id: "予測対象のサービスID",
+    resume_experience_years: "レジュメに記載された対象サービスの経験年数",
+    resume_reliability_score: "経歴情報の信頼性スコア",
+    github_public_repos: "GitHub公開リポジトリ数 (対象サービス利用分)",
+    github_stars: "GitHub獲得スター合計数 (対象サービス利用分)",
+    github_commits: "GitHubコミット合計数 (対象サービス利用分)",
+    blog_article_count: "技術ブログ記事執筆数 (対象サービス関連分)",
+    blog_reaction_count: "技術ブログ獲得リアクション合計数 (対象サービス関連分)"
+  }
+}
+
+
+WITH latest_service_mapping AS (
+  SELECT
+    service_id,
+    google_cloud_service_id
+  FROM
+    ${ref("service_mapping")}
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY service_id ORDER BY updated_at DESC) = 1
+),
+
+github_features AS (
+  SELECT
+    gh.user_id,
+    COALESCE(gh.public_repos, 0) AS github_public_repos,
+    COALESCE(gh.total_stars, 0) AS github_stars,
+    COALESCE(gh.total_commits, 0) AS github_commits
+  FROM
+    ${ref("other_team_dataset", "github_metrics")} AS gh
+  INNER JOIN
+    latest_service_mapping AS sm
+    ON
+      gh.google_cloud_service_id = sm.google_cloud_service_id
+  WHERE
+    sm.service_id = ${dataform.projectConfig.vars.service_id}
+),
+
+tech_blog_features AS (
+  SELECT
+    tb.user_id,
+    SUM(COALESCE(tb.article_count, 0)) AS blog_article_count,
+    SUM(COALESCE(tb.reaction_count, 0)) AS blog_reaction_count
+  FROM
+    ${ref("other_team_dataset", "tech_blog_metrics")} AS tb
+  INNER JOIN
+    latest_service_mapping AS sm
+    ON
+      tb.google_cloud_service_id = sm.google_cloud_service_id
+  WHERE
+    sm.service_id = ${dataform.projectConfig.vars.service_id}
+  GROUP BY
+    tb.user_id
+),
+
+resume_features AS (
+  SELECT
+    r.user_id,
+    COALESCE(r.experience_years, 0.0) AS resume_experience_years,
+    COALESCE(r.reliability_score, 0) AS resume_reliability_score
+  FROM
+    ${ref("other_team_dataset", "resumes")} AS r
+  INNER JOIN
+    latest_service_mapping AS sm
+    ON
+      r.google_cloud_service_id = sm.google_cloud_service_id
+  WHERE
+    sm.service_id = ${dataform.projectConfig.vars.service_id}
+)
+
+SELECT
+  scr.user_id,
+  scr.is_practical_level,
+  '${dataform.projectConfig.vars.service_id}' AS target_service_id,
+  COALESCE(r.resume_experience_years, 0.0) AS resume_experience_years,
+  COALESCE(r.resume_reliability_score, 0) AS resume_reliability_score,
+  COALESCE(g.github_public_repos, 0) AS github_public_repos,
+  COALESCE(g.github_stars, 0) AS github_stars,
+  COALESCE(g.github_commits, 0) AS github_commits,
+  COALESCE(b.blog_article_count, 0) AS blog_article_count,
+  COALESCE(b.blog_reaction_count, 0) AS blog_reaction_count
+FROM
+  (
+    SELECT
+      user_id,
+      is_practical_level
+    FROM
+      ${ref("raw_data", "skill_check_results")}
+    WHERE
+      service_id = ${dataform.projectConfig.vars.service_id}
+  ) AS scr
+LEFT JOIN
+  resume_features AS r
+  ON
+    scr.user_id = r.user_id
+LEFT JOIN
+  github_features AS g
+  ON
+    scr.user_id = g.user_id
+LEFT JOIN
+  tech_blog_features AS b
+  ON
+    scr.user_id = b.user_id

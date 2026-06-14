@@ -1,0 +1,98 @@
+name: Deploy ML Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Lint and Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv and Set up Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          version: "latest"
+          python-version: "3.14"
+
+      - name: Lint and Test Import Function
+        run: |
+          cd functions/import-skill-check
+          uv sync --group dev
+          uv run black --check .
+          uv run flake8 .
+          uv run pytest test_main.py
+
+      - name: Lint and Test Export Function
+        run: |
+          cd functions/export-prediction
+          uv sync --group dev
+          uv run black --check .
+          uv run flake8 .
+          uv run pytest test_main.py
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Format & Validate
+        run: |
+          cd terraform
+          terraform init -backend=false
+          terraform fmt -check
+          terraform validate
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Run Spell Check with cSpell
+        run: npx cspell "functions/**/*" --no-must-find-files
+
+      - name: Lint SQLX files with SQLFluff
+        run: |
+          cd dataform
+          # Use sqlfluff with the dataform templater to lint definitions
+          uvx --with sqlfluff-templater-dataform sqlfluff lint definitions/
+
+      - name: Compile Dataform
+        run: |
+          cd dataform
+          npx @dataform/cli compile
+
+  deploy:
+    name: Deploy to GCP
+    needs: validate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Apply
+        run: |
+          cd terraform
+          terraform init -backend-config="bucket=terraform-state-${{ secrets.GCP_PROJECT_ID }}"
+          terraform apply -auto-approve -var="project_id=${{ secrets.GCP_PROJECT_ID }}"
+

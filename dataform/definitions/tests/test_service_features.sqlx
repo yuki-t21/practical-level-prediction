@@ -1,0 +1,58 @@
+config {
+  type: "test",
+  dataset: "service_features_1"
+}
+
+input "raw_data", "skill_check_results" {
+  SELECT "user_A" AS user_id, 1 AS service_id, 1 AS is_practical_level, CURRENT_TIMESTAMP() AS updated_at UNION ALL
+  SELECT "user_B" AS user_id, 1 AS service_id, 0 AS is_practical_level, CURRENT_TIMESTAMP() AS updated_at
+}
+
+input "service_mapping" {
+  SELECT
+    1 AS service_id,
+    "AlloyDB" AS service_name,
+    101 AS google_cloud_service_id,
+    "Google Cloud AlloyDB" AS google_cloud_service_name,
+    CURRENT_TIMESTAMP() AS updated_at
+}
+
+input "other_team_dataset", "resumes" {
+  SELECT "user_A" AS user_id, 101 AS google_cloud_service_id, 3.5 AS experience_years, 3 AS reliability_score, CURRENT_TIMESTAMP() AS created_at, CURRENT_TIMESTAMP() AS updated_at UNION ALL
+  SELECT "user_B" AS user_id, 101 AS google_cloud_service_id, 0.0 AS experience_years, 0 AS reliability_score, CURRENT_TIMESTAMP() AS created_at, CURRENT_TIMESTAMP() AS updated_at
+}
+
+input "other_team_dataset", "github_metrics" {
+  SELECT "user_A" AS user_id, 101 AS google_cloud_service_id, 5 AS public_repos, 10 AS total_stars, 100 AS total_commits, CURRENT_TIMESTAMP() AS created_at, CURRENT_TIMESTAMP() AS updated_at UNION ALL
+  SELECT "user_B" AS user_id, 101 AS google_cloud_service_id, 0 AS public_repos, 0 AS total_stars, 0 AS total_commits, CURRENT_TIMESTAMP() AS created_at, CURRENT_TIMESTAMP() AS updated_at
+}
+
+input "other_team_dataset", "tech_blog_metrics" {
+  SELECT "user_A" AS user_id, "Qiita" AS blog_service, 101 AS google_cloud_service_id, 2 AS article_count, 20 AS reaction_count, CURRENT_TIMESTAMP() AS created_at, CURRENT_TIMESTAMP() AS updated_at UNION ALL
+  SELECT "user_A" AS user_id, "Zenn" AS blog_service, 101 AS google_cloud_service_id, 1 AS article_count, 10 AS reaction_count, CURRENT_TIMESTAMP() AS created_at, CURRENT_TIMESTAMP() AS updated_at UNION ALL
+  SELECT "user_B" AS user_id, "Qiita" AS blog_service, 101 AS google_cloud_service_id, 0 AS article_count, 0 AS reaction_count, CURRENT_TIMESTAMP() AS created_at, CURRENT_TIMESTAMP() AS updated_at
+}
+
+SELECT
+  "user_A" AS user_id,
+  1 AS is_practical_level,
+  "1" AS target_service_id,
+  3.5 AS resume_experience_years,
+  3 AS resume_reliability_score,
+  5 AS github_public_repos,
+  10 AS github_stars,
+  100 AS github_commits,
+  3 AS blog_article_count,
+  30 AS blog_reaction_count
+UNION ALL
+SELECT
+  "user_B" AS user_id,
+  0 AS is_practical_level,
+  "1" AS target_service_id,
+  0.0 AS resume_experience_years,
+  0 AS resume_reliability_score,
+  0 AS github_public_repos,
+  0 AS github_stars,
+  0 AS github_commits,
+  0 AS blog_article_count,
+  0 AS blog_reaction_count

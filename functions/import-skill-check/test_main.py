@@ -1,15 +1,17 @@
 import unittest
 from unittest.mock import MagicMock, patch
+
 import pandas as pd
+
 import main
 
 # Mock client globals early to avoid DefaultCredentialsError during import
 main.bq_client = MagicMock()
 main.storage_client = MagicMock()
 from main import (
+    import_skill_check,
     normalize_column_name,
     preprocess_dataframe,
-    import_skill_check,
 )
 
 

@@ -3,20 +3,23 @@ import json
 import logging
 import os
 import re
+from typing import cast
+
 import functions_framework
-from google.cloud import bigquery
-from google.cloud import storage
 import pandas as pd
+from cloudevents.http import CloudEvent
+from google.cloud import storage  # type: ignore[attr-defined]
+from google.cloud import bigquery
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-bq_client = None
-storage_client = None
+bq_client: bigquery.Client | None = None
+storage_client: storage.Client | None = None
 
 
-def get_bq_client():
+def get_bq_client() -> bigquery.Client:
     """
     BigQuery クライアントを遅延初期化して返します。
 
@@ -31,7 +34,7 @@ def get_bq_client():
     return bq_client
 
 
-def get_storage_client():
+def get_storage_client() -> storage.Client:
     """
     Cloud Storage クライアントを遅延初期化して返します。
 
@@ -93,7 +96,7 @@ def detect_user_id_column(df: pd.DataFrame) -> str:
     original_cols = list(df.columns)
     for col in original_cols:
         if normalize_column_name(col) == "user_id":
-            return col
+            return str(col)
     raise ValueError("Excel is missing required 'User ID' column")
 
 
@@ -245,7 +248,7 @@ def download_from_gcs(bucket_name: str, file_name: str) -> bytes:
     """
     bucket = get_storage_client().bucket(bucket_name)
     blob = bucket.blob(file_name)
-    return blob.download_as_bytes()
+    return cast(bytes, blob.download_as_bytes())
 
 
 def load_schema_from_json(json_path: str) -> list[bigquery.SchemaField]:
@@ -332,7 +335,7 @@ def load_master_to_bigquery(
 
 
 @functions_framework.cloud_event
-def import_skill_check(cloud_event):
+def import_skill_check(cloud_event: CloudEvent) -> None:
     """
     Cloud Storage への Excel ファイルアップロードによってトリガーされ、データを BigQuery に上書きロードする Cloud Run Function。
 

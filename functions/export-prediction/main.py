@@ -1,23 +1,25 @@
+import datetime
 import io
+import logging
 import os
 import re
-import logging
-import datetime
+
 import functions_framework
-from google.cloud import bigquery
-from google.cloud import storage
 import pandas as pd
+from cloudevents.http import CloudEvent
+from google.cloud import storage  # type: ignore[attr-defined]
+from google.cloud import bigquery
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize clients lazily
-bq_client = None
-storage_client = None
+bq_client: bigquery.Client | None = None
+storage_client: storage.Client | None = None
 
 
-def get_bq_client():
+def get_bq_client() -> bigquery.Client:
     """
     BigQuery クライアントを遅延初期化して返します。
 
@@ -32,7 +34,7 @@ def get_bq_client():
     return bq_client
 
 
-def get_storage_client():
+def get_storage_client() -> storage.Client:
     """
     Cloud Storage クライアントを遅延初期化して返します。
 
@@ -55,7 +57,7 @@ FEATURES_TABLE = os.environ.get("FEATURES_TABLE", "engineer_features")
 OUTPUT_BUCKET_NAME = os.environ.get("OUTPUT_BUCKET_NAME")
 
 
-def flatten_shap_attributions(rows) -> pd.DataFrame:
+def flatten_shap_attributions(rows: bigquery.table.RowIterator) -> pd.DataFrame:
     """
     ML.EXPLAIN_PREDICT が返すネストされた top_feature_attributions をフラット化します。
 
@@ -147,7 +149,9 @@ def extract_service_id(file_name: str) -> str:
     return "1"  # Fallback
 
 
-def fetch_service_name_mapping(bq_client, project_id: str) -> dict:
+def fetch_service_name_mapping(
+    bq_client: bigquery.Client, project_id: str
+) -> dict[int | str, str]:
     """
     BigQuery の raw_data.service_master テーブルから
     サービス ID とサービス名のマッピング情報を取得します。
@@ -164,7 +168,7 @@ def fetch_service_name_mapping(bq_client, project_id: str) -> dict:
     dict
         サービス ID をキー、サービス名を値とする辞書。
     """
-    service_mapping = {}
+    service_mapping: dict[int | str, str] = {}
     try:
         mapping_query = f"SELECT service_id, service_name FROM `{project_id}.raw_data.service_master`"
         mapping_job = bq_client.query(mapping_query)
@@ -181,14 +185,14 @@ def fetch_service_name_mapping(bq_client, project_id: str) -> dict:
 
 
 def run_explain_predict(
-    bq_client,
+    bq_client: bigquery.Client,
     project_id: str,
     model_dataset: str,
     model_name: str,
     features_dataset: str,
     features_table: str,
     user_ids: list[str],
-):
+) -> bigquery.table.RowIterator:
     """
     BigQuery ML の ML.EXPLAIN_PREDICT クエリを実行して、
     バッチ予測結果と SHAP 特徴量重要度を取得します。
@@ -246,7 +250,7 @@ def run_explain_predict(
 
 
 def upload_to_gcs(
-    storage_client,
+    storage_client: storage.Client,
     bucket_name: str,
     destination_file_name: str,
     data_bytes: bytes,
@@ -280,7 +284,7 @@ def upload_to_gcs(
 
 
 @functions_framework.cloud_event
-def export_prediction(cloud_event):
+def export_prediction(cloud_event: CloudEvent) -> None:
     """
     CSV ファイルのアップロードをトリガーに実行されるイベント駆動型 Cloud Run Function。
 
@@ -318,6 +322,8 @@ def export_prediction(cloud_event):
         logger.info(f"Skipping non-CSV file: {file_name}")
         return
 
+    if not PROJECT_ID:
+        raise ValueError("PROJECT_ID environment variable is not set.")
     if not OUTPUT_BUCKET_NAME:
         raise ValueError("OUTPUT_BUCKET_NAME environment variable is not set.")
 
@@ -351,7 +357,7 @@ def export_prediction(cloud_event):
 
         service_mapping = fetch_service_name_mapping(get_bq_client(), PROJECT_ID)
 
-        # Safely convert service_id to int key if possible
+        service_id_key: int | str
         try:
             service_id_key = int(service_id)
         except (ValueError, TypeError):

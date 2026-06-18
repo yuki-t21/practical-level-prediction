@@ -110,11 +110,11 @@ def example_function(df: pd.DataFrame, user_id_col: str) -> pd.DataFrame:
 
 インポートを担当する `skill_check_results` と `service_master` の 2 テーブルについては、以下の 2 箇所でスキーマ情報（カラム名、説明、データ型）をそれぞれ定義しています。
 
-1. **Dataform定義**: `dataform/definitions/sources/` 配下の SQLX ファイル
+1. **Dataform定義**: `definitions/sources/` 配下の SQLX ファイル
 2. **Pythonインポーター定義**: `functions/import-skill-check/schemas/` 配下の JSON ファイル
 
 ### 開発時のルール
-- デプロイパッケージの疎結合性（Cloud Run Functions が `dataform/` フォルダを必要としない構成）および Python 側ユニットテスト（`test_main.py`）のローカル実行独立性を維持するため、**意図的にこの二重管理構成を採用しています。**
+- デプロイパッケージの疎結合性（Cloud Run Functions が `definitions` などの Dataform 関連ディレクトリを必要としない構成）および Python 側ユニットテスト（`test_main.py`）のローカル実行独立性を維持するため、**意図的にこの二重管理構成を採用しています。**
 - スキーマ変更時（カラムの追加や説明文の更新等）は、**必ず Dataform 側の SQLX ファイルと Python 側の JSON ファイルの双方を手動で同時に更新してください。**
 
 ---

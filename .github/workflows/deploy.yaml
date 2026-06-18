@@ -60,14 +60,13 @@ jobs:
 
       - name: Lint SQLX files with SQLFluff
         run: |
-          cd dataform
           # Use sqlfluff with the dataform templater to lint definitions
           uvx --with sqlfluff-templater-dataform sqlfluff lint definitions/
 
       - name: Compile Dataform
         run: |
-          cd dataform
           npx @dataform/cli compile
+
 
   deploy:
     name: Deploy to GCP

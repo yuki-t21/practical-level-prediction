@@ -102,7 +102,7 @@ uv run flake8 .
 `import-skill-check` が扱う `skill_check_results` および `service_master` の 2 テーブルのスキーマは、以下の 2 箇所で管理されています。
 スキーマ変更時は**両方を必ず同時に更新**してください。
 
-- `dataform/definitions/sources/` 配下の SQLX ファイル（Dataform 側）
+- `definitions/sources/` 配下の SQLX ファイル（Dataform 側）
 - `import-skill-check/schemas/` 配下の JSON ファイル（Python インポーター側）
 
 ---

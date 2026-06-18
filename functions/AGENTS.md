@@ -110,18 +110,18 @@ def example_function(df: pd.DataFrame, user_id_col: str) -> pd.DataFrame:
 
 インポートを担当する `skill_check_results` と `service_master` の 2 テーブルについては、以下の 2 箇所でスキーマ情報（カラム名、説明、データ型）をそれぞれ定義しています。
 
-1. **Dataform定義**: `dataform/definitions/sources/` 配下の SQLX ファイル
+1. **Dataform定義**: `definitions/sources/` 配下の SQLX ファイル
 2. **Pythonインポーター定義**: `functions/import-skill-check/schemas/` 配下の JSON ファイル
 
 ### 開発時のルール
-- デプロイパッケージの疎結合性（Cloud Run Functions が `dataform/` フォルダを必要としない構成）および Python 側ユニットテスト（`test_main.py`）のローカル実行独立性を維持するため、**意図的にこの二重管理構成を採用しています。**
+- デプロイパッケージの疎結合性（Cloud Run Functions が `definitions` などの Dataform 関連ディレクトリを必要としない構成）および Python 側ユニットテスト（`test_main.py`）のローカル実行独立性を維持するため、**意図的にこの二重管理構成を採用しています。**
 - スキーマ変更時（カラムの追加や説明文の更新等）は、**必ず Dataform 側の SQLX ファイルと Python 側の JSON ファイルの双方を手動で同時に更新してください。**
 
 ---
 
-## 6. コード品質管理 (Black, Flake8 & cSpell)
+## 6. コード品質管理 (Black, Flake8, mypy, isort, radon & cSpell)
 
-コードの品質保持、構文・エラーチェック、およびスペルミスの防止のため、フォーマッタである **`black`**、静的解析（リンター）ツールである **`flake8`**、およびスペルチェッカーである **`cspell`** を導入しています。
+コードの品質保持、型安全性、構文・エラーチェック、およびスペルミスの防止のため、フォーマッタである **`black`**、静的解析（リンター）ツールである **`flake8`**、静的型チェックツールである **`mypy`**、インポート文整頓ツールである **`isort`**、循環的複雑度測定ツールである **`radon`**、およびスペルチェッカーである **`cspell`** を導入しています。
 
 ### ① Black による自動フォーマット
 各関数ディレクトリ配下で以下のコマンドを実行し、コードの整形を行います。
@@ -143,7 +143,39 @@ uv run black --check .
 uv run flake8 .
 ```
 
-### ③ cSpell によるスペルチェック
+### ③ mypy による静的型チェック
+各関数ディレクトリ配下で以下のコマンドを実行し、型アノテーションの適合チェックを行います。
+※テストコード（`test_main.py`）については、各 `pyproject.toml` にて型チェックが除外（`ignore_errors = true`）されています。
+
+```bash
+# 静的型チェックの実行
+uv run mypy .
+```
+
+### ④ isort によるインポート順自動ソート
+インポート文を PEP 8 および Black と調和する形式に自動ソートします。
+
+```bash
+# インポート順の自動ソート実行
+uv run isort .
+
+# ソート順に違反がないかチェックのみ実行
+uv run isort --check-only --diff .
+```
+
+### ⑤ radon による循環的複雑度（Cyclomatic Complexity）チェック
+関数の複雑度を測定し、メンテナンス性の低い肥大化したコードを未然に防ぎます。
+テストコードを除外し、複雑度クラスが **`C` (複雑度スコア 11) 以上となるブロックが検出された場合はチェックエラー** となります。
+
+```bash
+# 複雑度の測定と表示（テストコードを除外）
+uv run radon cc . -e "test_*.py" -s -a
+
+# 複雑度 C 以上のブロックがないかのチェック
+uv run radon cc . -e "test_*.py" -n C
+```
+
+### ⑥ cSpell によるスペルチェック
 リポジトリのルートディレクトリで以下のコマンドを実行し、スペルミスがないか確認します。
 プロジェクト独自の許可ワードや除外設定はルートの `.cspell.json` にて管理されています。
 

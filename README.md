@@ -45,19 +45,18 @@ practical-level-prediction/
 │   ├── pull_request_template.md
 │   └── workflows/
 │       └── deploy.yaml         # CI/CD: Lint・テスト・Terraform デプロイ
-├── dataform/                   # Dataform パイプライン (特徴量エンジニアリング・BQML)
-│   ├── AGENTS.md
-│   ├── README.md
-│   ├── workflow_settings.yaml
-│   └── definitions/
-│       ├── sources/            # ソーステーブル宣言 (type: declaration)
-│       ├── tests/              # ユニットテスト定義
-│       ├── common_features.sqlx
-│       ├── service_mapping.sqlx
-│       ├── engineer_features.sqlx
-│       ├── train_model.sqlx
-│       ├── evaluate_model.sqlx
-│       └── explain_predictions.sqlx
+├── workflow_settings.yaml      # Dataform 設定ファイル
+├── definitions/                # Dataform 定義 (特徴量エンジニアリング・BQML)
+│   ├── AGENTS.md               # Dataform 開発ルール
+│   ├── README.md               # Dataform 概要・仕様
+│   ├── sources/            # ソーステーブル宣言 (type: declaration)
+│   ├── tests/              # ユニットテスト定義
+│   ├── common_features.sqlx
+│   ├── service_mapping.sqlx
+│   ├── engineer_features.sqlx
+│   ├── train_model.sqlx
+│   ├── evaluate_model.sqlx
+│   └── explain_predictions.sqlx
 ├── functions/                  # Cloud Run Functions (第2世代)
 │   ├── AGENTS.md
 │   ├── README.md
@@ -155,7 +154,7 @@ terraform apply -var="project_id=<your-project-id>"
 
 ### 3. Dataform の設定
 
-`dataform/workflow_settings.yaml` の `defaultProject` を実際のプロジェクト ID に変更してください。
+`workflow_settings.yaml` の `defaultProject` を実際のプロジェクト ID に変更してください。
 
 ```yaml
 defaultProject: your-actual-project-id
@@ -164,7 +163,6 @@ defaultProject: your-actual-project-id
 Dataform CLI のローカル認証設定:
 
 ```bash
-cd dataform
 npx @dataform/cli init-creds
 ```
 
@@ -184,8 +182,6 @@ gcloud storage cp samples/sample_skill_check.xlsx \
 ### 5. Dataform パイプラインの実行
 
 ```bash
-cd dataform
-
 # ステップ 1: 共通特徴量パイプライン (全サービス共通)
 npx @dataform/cli run --tags common_features_pipeline
 
@@ -213,7 +209,7 @@ gcloud storage cp samples/targets_1.csv \
 
 | ジョブ | トリガー | 内容 |
 | :--- | :--- | :--- |
-| `validate` | PR・Push | 関数の Lint (black/flake8)・pytest、Terraform fmt/validate、cSpell、SQLFluff、Dataform コンパイル |
+| `validate` | PR・Push | 関数の Lint (black/flake8/mypy/isort/radon)・pytest、Terraform fmt/validate、cSpell、SQLFluff、Dataform コンパイル |
 | `deploy` | `main` への Push のみ | Terraform apply による GCP リソースの自動デプロイ |
 
 ### 必要な GitHub Secrets
@@ -245,7 +241,6 @@ uv run pytest
 ### Dataform のコンパイル・テスト
 
 ```bash
-cd dataform
 npx @dataform/cli compile
 npx @dataform/cli test
 ```
@@ -266,7 +261,7 @@ terraform plan -var="project_id=<your-project-id>"
 | ディレクトリ | README | AGENTS.md |
 | :--- | :--- | :--- |
 | (ルート) | [README.md](README.md) | [AGENTS.md](AGENTS.md) |
-| `dataform/` | [dataform/README.md](dataform/README.md) | [dataform/AGENTS.md](dataform/AGENTS.md) |
+| `definitions/` | [definitions/README.md](definitions/README.md) | [definitions/AGENTS.md](definitions/AGENTS.md) |
 | `functions/` | [functions/README.md](functions/README.md) | [functions/AGENTS.md](functions/AGENTS.md) |
 | `terraform/` | [terraform/README.md](terraform/README.md) | [terraform/AGENTS.md](terraform/AGENTS.md) |
 | `samples/` | [samples/README.md](samples/README.md) | — |

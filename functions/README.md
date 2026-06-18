@@ -89,8 +89,17 @@ uv run pytest
 # フォーマット
 uv run black .
 
-# 静的解析
+# 静的解析 (リンター)
 uv run flake8 .
+
+# 静的型チェック
+uv run mypy .
+
+# インポート順整理
+uv run isort .
+
+# 複雑度測定 (テストコード除外)
+uv run radon cc . -e "test_*.py" -s -a
 ```
 
 > [!NOTE]
@@ -102,7 +111,7 @@ uv run flake8 .
 `import-skill-check` が扱う `skill_check_results` および `service_master` の 2 テーブルのスキーマは、以下の 2 箇所で管理されています。
 スキーマ変更時は**両方を必ず同時に更新**してください。
 
-- `dataform/definitions/sources/` 配下の SQLX ファイル（Dataform 側）
+- `definitions/sources/` 配下の SQLX ファイル（Dataform 側）
 - `import-skill-check/schemas/` 配下の JSON ファイル（Python インポーター側）
 
 ---

@@ -1,6 +1,6 @@
 # Dataform 開発エージェント向け指示書 (AGENTS.md)
 
-本ディレクトリ (`dataform/`) における Dataform プロジェクトの変更・開発を行うエージェントは、以下のプラクティスを必ず遵守してください。
+本ディレクトリ (`definitions/`) およびルートの Dataform プロジェクトの変更・開発を行うエージェントは、以下のプラクティスを必ず遵守してください。
 
 ---
 
@@ -33,7 +33,7 @@
 
 ### ⑥ インポート用ソーススキーマの二重管理について (重要)
 - 本プロジェクトでインポートを担当する `skill_check_results` と `service_master` の 2 テーブルについては、以下の 2 箇所でスキーマ情報（カラム名、説明等）を定義しています。
-  1. Dataform定義: `dataform/definitions/sources/` 配下の SQLX ファイル
+  1. Dataform定義: `definitions/sources/` 配下の SQLX ファイル
   2. Pythonインポーター定義: `functions/import-skill-check/schemas/` 配下の JSON ファイル
 - デプロイの疎結合性および Python 側ユニットテスト（`test_main.py`）のローカル実行時の独立性（外部ディレクトリへのパス依存排除）を維持するため、意図的にこの二重管理構成としています。スキーマ変更時（カラムの追加や説明文の更新等）は、**必ず双方のファイルを同時に更新してください。**
 
@@ -197,7 +197,7 @@ pip install sqlfluff sqlfluff-templater-dataform
 ```
 
 ### ② コマンドによる検証・自動修正
-`dataform` ディレクトリで以下のコマンドを実行します。
+リポジトリのルートディレクトリで以下のコマンドを実行します。
 ```bash
 # 構文チェック (エラー検出)
 sqlfluff lint definitions/

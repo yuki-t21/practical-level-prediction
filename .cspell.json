@@ -26,7 +26,11 @@
     "db-dtypes",
     "gcloud",
     "GCSFS",
-    "FSSPEC"
+    "FSSPEC",
+    "mypy",
+    "isort",
+    "radon",
+    "cloudevents"
   ],
   "ignorePaths": [
     "**/node_modules/**",

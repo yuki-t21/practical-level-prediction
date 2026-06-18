@@ -1,16 +1,18 @@
 import unittest
 from unittest.mock import MagicMock, patch
+
 import pandas as pd
+
 import main
 
 # Mock client globals early to avoid DefaultCredentialsError during import
 main.bq_client = MagicMock()
 main.storage_client = MagicMock()
 from main import (
-    flatten_shap_attributions,
     export_prediction,
     extract_service_id,
     fetch_service_name_mapping,
+    flatten_shap_attributions,
     run_explain_predict,
     upload_to_gcs,
 )

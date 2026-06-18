@@ -209,7 +209,7 @@ gcloud storage cp samples/targets_1.csv \
 
 | ジョブ | トリガー | 内容 |
 | :--- | :--- | :--- |
-| `validate` | PR・Push | 関数の Lint (black/flake8)・pytest、Terraform fmt/validate、cSpell、SQLFluff、Dataform コンパイル |
+| `validate` | PR・Push | 関数の Lint (black/flake8/mypy/isort/radon)・pytest、Terraform fmt/validate、cSpell、SQLFluff、Dataform コンパイル |
 | `deploy` | `main` への Push のみ | Terraform apply による GCP リソースの自動デプロイ |
 
 ### 必要な GitHub Secrets

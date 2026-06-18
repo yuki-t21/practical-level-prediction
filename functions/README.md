@@ -89,8 +89,17 @@ uv run pytest
 # フォーマット
 uv run black .
 
-# 静的解析
+# 静的解析 (リンター)
 uv run flake8 .
+
+# 静的型チェック
+uv run mypy .
+
+# インポート順整理
+uv run isort .
+
+# 複雑度測定 (テストコード除外)
+uv run radon cc . -e "test_*.py" -s -a
 ```
 
 > [!NOTE]

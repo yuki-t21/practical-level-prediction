@@ -236,6 +236,11 @@ uv run pytest
 cd functions/export-prediction
 uv sync --group dev
 uv run pytest
+
+# send-slack-notification
+cd functions/send-slack-notification
+uv sync --group dev
+uv run pytest
 ```
 
 ### Dataform のコンパイル・テスト

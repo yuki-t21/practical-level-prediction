@@ -1,0 +1,7 @@
+config {
+  type: "operations",
+  name: "common_pipeline_start",
+  tags: ["common_features_pipeline"],
+}
+
+SELECT `${dataform.projectConfig.defaultDatabase}.ml_models.send_slack`('#predictions-alert', '🚀 共通特徴量生成パイプライン (common_features_pipeline) を開始します。')

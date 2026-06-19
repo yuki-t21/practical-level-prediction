@@ -1,0 +1,10 @@
+config {
+  type: "operations",
+  name: "service_pipeline_start",
+  tags: ["service_features_pipeline"],
+}
+
+SELECT `${dataform.projectConfig.defaultDatabase}.ml_models.send_slack`(
+  '#predictions-alert',
+  CONCAT('🚀 サービス固有パイプライン (service_features_pipeline) を開始します。(対象サービスID: ', dataform.projectConfig.vars.service_id, ')')
+)

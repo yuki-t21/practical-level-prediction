@@ -10,6 +10,7 @@
 | :--- | :--- | :--- | :--- |
 | `import-skill-check` | `import-skill-check/` | GCS オブジェクト作成 (`.xlsx`) | スキルチェック結果 Excel を BigQuery にインポート |
 | `export-prediction` | `export-prediction/` | GCS オブジェクト作成 (`.csv`) | 推論対象ユーザーリストに対してバッチ予測を実行し、Excel レポートを出力 |
+| `send-slack-notification` | `send-slack-notification/` | HTTP (BigQuery Remote Function) | Slackへの通知送信（Secret Managerからトークンを動的取得） |
 
 ---
 
@@ -63,6 +64,23 @@ targets_{service_id}_{yyyymmdd}.csv   # 日付サフィックス付き
 | `FEATURES_DATASET` | 特徴量テーブルが格納されているデータセット ID | `features` |
 | `FEATURES_TABLE` | 特徴量テーブルのベース名（`_{service_id}` サフィックスが付与される） | `engineer_features` |
 | `OUTPUT_BUCKET_NAME` | 予測結果 Excel の出力先 GCS バケット名 | (必須) |
+
+---
+
+## 3. send-slack-notification
+
+BigQuery リモート関数から HTTP リクエストを介して呼び出され、指定されたチャンネルに Slack メッセージを送信します。
+
+1. Secret Manager から最新の `SLACK_API_TOKEN` を安全に取得
+2. リモート関数からのバッチリクエスト (`calls` 配列) をパース
+3. Slack の `chat.postMessage` API にメッセージを POST
+4. 各送信の成否ステータスを配列 (`replies`) に格納して BigQuery へ返却
+
+**主な環境変数**
+
+| 変数名 | 説明 | デフォルト値 |
+| :--- | :--- | :--- |
+| `SLACK_TOKEN_SECRET_NAME` | Secret Manager 上の Slack トークンシークレットのリソース名 | (必須) |
 
 ---
 

@@ -4,7 +4,7 @@ config {
   name: "service_features_" + dataform.projectConfig.vars.service_id,
   description: "特定サービスに依存する縦持ち特徴量テーブル",
   tags: ["service_features_pipeline"],
-  dependencies: ["service_mapping"],
+  dependencies: ["service_mapping", "service_pipeline_start"],
   columns: {
     user_id: "ユーザーID",
     is_practical_level: "実務レベル判定フラグ (0 or 1)",

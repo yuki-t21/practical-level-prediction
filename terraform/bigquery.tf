@@ -21,3 +21,37 @@ resource "google_bigquery_dataset" "ml_models" {
   location                   = var.region
   delete_contents_on_destroy = true
 }
+
+# BigQuery Connection for Slack Notification Cloud Run Function
+resource "google_bigquery_connection" "slack_notification_connection" {
+  connection_id = "slack_notification_conn"
+  location      = var.region
+  friendly_name = "Slack Notification Connection"
+  description   = "Connection to invoke Slack notification Cloud Run Function"
+  cloud_resource {}
+}
+
+# BigQuery Remote Function for Slack notification
+resource "google_bigquery_routine" "send_slack" {
+  dataset_id   = google_bigquery_dataset.ml_models.dataset_id
+  routine_id   = "send_slack"
+  routine_type = "SCALAR_FUNCTION"
+  language     = "SQL"
+
+  arguments {
+    name      = "channel"
+    data_type = "{\"typeKind\" : \"STRING\"}"
+  }
+  arguments {
+    name      = "text"
+    data_type = "{\"typeKind\" : \"STRING\"}"
+  }
+
+  return_type = "{\"typeKind\" : \"STRING\"}"
+
+  remote_function_options {
+    endpoint          = google_cloudfunctions2_function.send_slack_notification.service_config[0].uri
+    connection        = google_bigquery_connection.slack_notification_connection.name
+    max_batching_rows = "10"
+  }
+}

@@ -30,7 +30,9 @@
     "mypy",
     "isort",
     "radon",
-    "cloudevents"
+    "cloudevents",
+    "secretmanager",
+    "xoxb"
   ],
   "ignorePaths": [
     "**/node_modules/**",

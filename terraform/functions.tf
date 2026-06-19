@@ -13,6 +13,13 @@ data "archive_file" "export_prediction_zip" {
   excludes    = ["venv", ".venv", "__pycache__", "test_main.py", ".pytest_cache", "uv.lock"]
 }
 
+data "archive_file" "send_slack_notification_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../functions/send-slack-notification"
+  output_path = "${path.module}/files/send_slack_notification.zip"
+  excludes    = ["venv", ".venv", "__pycache__", "test_main.py", ".pytest_cache", "uv.lock"]
+}
+
 
 # Upload zipped source codes to GCS source bucket
 resource "google_storage_bucket_object" "import_skill_check_source" {
@@ -25,6 +32,12 @@ resource "google_storage_bucket_object" "export_prediction_source" {
   name   = "export_prediction_${data.archive_file.export_prediction_zip.output_md5}.zip"
   bucket = google_storage_bucket.function_source.name
   source = data.archive_file.export_prediction_zip.output_path
+}
+
+resource "google_storage_bucket_object" "send_slack_notification_source" {
+  name   = "send_slack_notification_${data.archive_file.send_slack_notification_zip.output_md5}.zip"
+  bucket = google_storage_bucket.function_source.name
+  source = data.archive_file.send_slack_notification_zip.output_path
 }
 
 # Cloud Run Function: import-skill-check
@@ -118,4 +131,34 @@ resource "google_cloudfunctions2_function" "export_prediction" {
     google_project_iam_member.eventarc_event_receiver,
     google_project_iam_member.gcs_pubsub_publishing
   ]
+}
+
+# Cloud Run Function: send-slack-notification
+resource "google_cloudfunctions2_function" "send_slack_notification" {
+  name        = "send-slack-notification"
+  location    = var.region
+  description = "Sends notification to Slack using Secret Manager token, exposed as BQ remote function"
+
+  build_config {
+    runtime     = "python314"
+    entry_point = "send_slack_notification"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.function_source.name
+        object = google_storage_bucket_object.send_slack_notification_source.name
+      }
+    }
+  }
+
+  service_config {
+    max_instance_count    = 3
+    min_instance_count    = 0
+    available_memory      = "256Mi"
+    timeout_seconds       = 60
+    service_account_email = google_service_account.pipeline_sa.email
+
+    environment_variables = {
+      SLACK_TOKEN_SECRET_NAME = "projects/${data.google_project.project.number}/secrets/SLACK_API_TOKEN/versions/latest"
+    }
+  }
 }

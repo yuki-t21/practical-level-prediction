@@ -55,4 +55,8 @@ resource "google_bigquery_routine" "send_slack" {
     connection        = google_bigquery_connection.slack_notification_connection.name
     max_batching_rows = "10"
   }
+
+  depends_on = [
+    google_project_iam_member.deployer_bq_connection_admin
+  ]
 }

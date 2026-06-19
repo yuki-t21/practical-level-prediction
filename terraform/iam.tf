@@ -120,3 +120,17 @@ resource "google_service_account_iam_member" "github_deployer_wif" {
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_pool.name}/attribute.repository/yuki-t21/practical-level-prediction"
 }
 
+# Secret Manager Secret Accessor role for the pipeline SA (needed to read Slack token)
+resource "google_project_iam_member" "pipeline_sa_secret_accessor" {
+  project = var.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.pipeline_sa.email}"
+}
+
+# Allow BigQuery Connection service account to invoke the Slack notification Cloud Run Function
+resource "google_project_iam_member" "bq_connection_run_invoker" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_bigquery_connection.slack_notification_connection.cloud_resource[0].service_account_id}"
+}
+

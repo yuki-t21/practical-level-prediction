@@ -4,7 +4,7 @@ config {
   name: "common_features",
   description: "全サービス共通の資格・全体メトリクス特徴量テーブル",
   tags: ["common_features_pipeline"],
-  dependencies: ["level_weights"],
+  dependencies: ["level_weights", "common_pipeline_start"],
   hasOutput: true
 }
 

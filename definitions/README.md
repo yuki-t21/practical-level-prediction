@@ -84,9 +84,11 @@ npx @dataform/cli run --tags common_features_pipeline
 
 | 定義名 | 説明 |
 | :--- | :--- |
+| `common_pipeline_start` | 共通特徴量生成パイプラインの開始 Slack 通知（`send_slack` リモート関数呼び出し） |
 | `level_weights` | 資格レベル（Professional / Associate / Foundational）の難易度重みテーブル |
 | `service_mapping` | `service_master` と `google_cloud_services` をサービス名の意味的類似度で照合したマッピングテーブル。テスト時はテキスト部分一致、本番時は `AI.GENERATE_EMBEDDING` を使用 |
 | `common_features` | 全ユーザーの GCP 資格保有状況・加重スコア・GitHub 実績・技術ブログ実績・経歴情報をまとめた共通特徴量テーブル |
+| `common_pipeline_end` | 共通特徴量生成パイプラインの完了 Slack 通知（`send_slack` リモート関数呼び出し） |
 
 ### ステップ 2: サービス固有パイプライン (`service_features_pipeline`)
 
@@ -101,11 +103,13 @@ npx @dataform/cli run --tags service_features_pipeline --vars service_id=1
 
 | 定義名 | 説明 |
 | :--- | :--- |
+| `service_pipeline_start` | サービス固有パイプラインの開始 Slack 通知（`send_slack` リモート関数呼び出し） |
 | `service_features_{id}` | 対象サービスに関連するレジュメ・GitHub・技術ブログの特徴量テーブル |
 | `engineer_features_{id}` | 共通特徴量とサービス固有特徴量をマージした最終特徴量テーブル（アサーション付き） |
 | `train_model_operation` | `ML.BOOSTED_TREE_CLASSIFIER` によるモデル学習。出力先: `ml_models.engineer_skill_model_{id}` |
 | `evaluate_model_operation` | `ML.EVALUATE` によるモデル評価。出力先: `ml_models.evaluation_{id}` |
 | `explain_predictions_operation` | `ML.EXPLAIN_PREDICT` によるバッチ推論と SHAP 重要度の取得。出力先: `ml_models.explain_predictions_{id}` |
+| `service_pipeline_end` | サービス固有パイプラインの完了 Slack 通知（`send_slack` リモート関数呼び出し） |
 
 ---
 

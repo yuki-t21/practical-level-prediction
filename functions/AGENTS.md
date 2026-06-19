@@ -6,9 +6,10 @@
 
 ## 1. プロジェクト構成
 
-本ディレクトリには、以下の 2 つの関数プロジェクトが配置されています。
+本ディレクトリには、以下の 3 つの関数プロジェクトが配置されています。
 - **`import-skill-check/`**: Excel データを縦持ちに変換し、BigQuery へ `WRITE_TRUNCATE` で上書きインポートする関数。
 - **`export-prediction/`**: 推論対象ユーザーリストに対し、BQML モデルを用いたバッチ予測および SHAP 重要度の平坦化を行い、サービス名を付与した Excel 予測レポートを出力する関数。
+- **`send-slack-notification/`**: BigQuery リモート関数から呼び出され、Secret Manager 上の Slack API トークンを使用して指定されたチャンネルに通知を送信する関数。
 
 ---
 

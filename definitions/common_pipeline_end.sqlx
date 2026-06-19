@@ -1,0 +1,12 @@
+config {
+  type: "operations",
+  name: "common_pipeline_end",
+  tags: ["common_features_pipeline"],
+  dependencies: ["common_features"],
+}
+
+SELECT
+  `${dataform.projectConfig.defaultDatabase}.ml_models.send_slack`(
+    '#predictions-alert',
+    '✅ 共通特徴量生成パイプライン (common_features_pipeline) が完了しました。'
+  );

@@ -134,3 +134,10 @@ resource "google_project_iam_member" "bq_connection_run_invoker" {
   member  = "serviceAccount:${google_bigquery_connection.slack_notification_connection.cloud_resource[0].service_account_id}"
 }
 
+# Grant BigQuery Connection Admin role to the Deployer Service Account (needed to delegate connections in remote routines)
+resource "google_project_iam_member" "deployer_bq_connection_admin" {
+  project = var.project_id
+  role    = "roles/bigquery.connectionAdmin"
+  member  = "serviceAccount:${google_service_account.github_deployer_sa.email}"
+}
+

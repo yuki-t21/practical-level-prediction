@@ -33,10 +33,11 @@ resource "google_bigquery_connection" "slack_notification_connection" {
 
 # BigQuery Remote Function for Slack notification
 resource "google_bigquery_routine" "send_slack" {
-  dataset_id   = google_bigquery_dataset.ml_models.dataset_id
-  routine_id   = "send_slack"
-  routine_type = "SCALAR_FUNCTION"
-  language     = "SQL"
+  dataset_id      = google_bigquery_dataset.ml_models.dataset_id
+  routine_id      = "send_slack"
+  routine_type    = "SCALAR_FUNCTION"
+  language        = "SQL"
+  definition_body = ""
 
   arguments {
     name      = "channel"

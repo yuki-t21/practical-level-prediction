@@ -8,7 +8,7 @@ config {
 SELECT "Table github_metrics is empty" AS error_message
 FROM
   (
-    SELECT COUNT(*) AS row_count FROM ${ref("github_metrics")}
+    SELECT COUNT(1) AS row_count FROM ${ref("github_metrics")}
   )
 WHERE
   row_count = 0
@@ -16,18 +16,19 @@ WHERE
 UNION ALL
 
 -- 2. 主キー重複チェック (user_id, google_cloud_service_id)
-SELECT FORMAT(
-  "Duplicate primary key (user_id, google_cloud_service_id): (%s, %s)",
-  CAST(user_id AS STRING),
-  CAST(google_cloud_service_id AS STRING)
-) AS error_message
+SELECT
+  FORMAT(
+    "Duplicate primary key (user_id, google_cloud_service_id): (%s, %s)",
+    CAST(user_id AS STRING),
+    CAST(google_cloud_service_id AS STRING)
+  ) AS error_message
 FROM
   ${ref("github_metrics")}
 GROUP BY
   user_id,
   google_cloud_service_id
 HAVING
-  COUNT(*) > 1
+  COUNT(1) > 1
 
 UNION ALL
 

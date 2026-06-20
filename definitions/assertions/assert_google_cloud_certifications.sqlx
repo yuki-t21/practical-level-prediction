@@ -8,7 +8,7 @@ config {
 SELECT "Table google_cloud_certifications is empty" AS error_message
 FROM
   (
-    SELECT COUNT(*) AS row_count FROM ${ref("google_cloud_certifications")}
+    SELECT COUNT(1) AS row_count FROM ${ref("google_cloud_certifications")}
   )
 WHERE
   row_count = 0
@@ -16,13 +16,17 @@ WHERE
 UNION ALL
 
 -- 2. 主キー重複チェック (certification_id)
-SELECT FORMAT("Duplicate primary key certification_id: %s", CAST(certification_id AS STRING)) AS error_message
+SELECT
+  FORMAT(
+    "Duplicate primary key certification_id: %s",
+    CAST(certification_id AS STRING)
+  ) AS error_message
 FROM
   ${ref("google_cloud_certifications")}
 GROUP BY
   certification_id
 HAVING
-  COUNT(*) > 1
+  COUNT(1) > 1
 
 UNION ALL
 

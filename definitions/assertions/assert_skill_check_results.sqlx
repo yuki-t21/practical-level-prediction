@@ -8,7 +8,7 @@ config {
 SELECT "Table skill_check_results is empty" AS error_message
 FROM
   (
-    SELECT COUNT(*) AS row_count FROM ${ref("skill_check_results")}
+    SELECT COUNT(1) AS row_count FROM ${ref("skill_check_results")}
   )
 WHERE
   row_count = 0
@@ -16,18 +16,19 @@ WHERE
 UNION ALL
 
 -- 2. 主キー重複チェック (user_id, service_id)
-SELECT FORMAT(
-  "Duplicate primary key (user_id, service_id): (%s, %s)",
-  CAST(user_id AS STRING),
-  CAST(service_id AS STRING)
-) AS error_message
+SELECT
+  FORMAT(
+    "Duplicate primary key (user_id, service_id): (%s, %s)",
+    CAST(user_id AS STRING),
+    CAST(service_id AS STRING)
+  ) AS error_message
 FROM
   ${ref("skill_check_results")}
 GROUP BY
   user_id,
   service_id
 HAVING
-  COUNT(*) > 1
+  COUNT(1) > 1
 
 UNION ALL
 

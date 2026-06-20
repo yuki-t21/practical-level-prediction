@@ -23,3 +23,7 @@ capitalisation_policy = upper
 [sqlfluff:indentation]
 indent_unit = space
 tab_space_size = 2
+
+[sqlfluff:rules:convention.count_rows]
+prefer = literal
+

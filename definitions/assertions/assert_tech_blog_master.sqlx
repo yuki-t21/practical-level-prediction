@@ -8,7 +8,7 @@ config {
 SELECT "Table tech_blog_master is empty" AS error_message
 FROM
   (
-    SELECT COUNT(*) AS row_count FROM ${ref("tech_blog_master")}
+    SELECT COUNT(1) AS row_count FROM ${ref("tech_blog_master")}
   )
 WHERE
   row_count = 0
@@ -16,13 +16,17 @@ WHERE
 UNION ALL
 
 -- 2. 主キー重複チェック (blog_id)
-SELECT FORMAT("Duplicate primary key blog_id: %s", CAST(blog_id AS STRING)) AS error_message
+SELECT
+  FORMAT(
+    "Duplicate primary key blog_id: %s",
+    CAST(blog_id AS STRING)
+  ) AS error_message
 FROM
   ${ref("tech_blog_master")}
 GROUP BY
   blog_id
 HAVING
-  COUNT(*) > 1
+  COUNT(1) > 1
 
 UNION ALL
 

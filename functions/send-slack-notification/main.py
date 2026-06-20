@@ -32,14 +32,14 @@ def get_sm_client() -> secretmanager.SecretManagerServiceClient:
     return sm_client
 
 
-def get_slack_token() -> str:
+def get_slack_webhook_url() -> str:
     """
-    環境変数で指定された Secret Manager のパスから Slack トークンを取得します。
+    環境変数で指定された Secret Manager のパスから Slack Webhook URL を取得します。
 
     Returns
     -------
     str
-        取得した Slack トークン。
+        取得した Slack Webhook URL。
 
     Raises
     ------
@@ -50,21 +50,21 @@ def get_slack_token() -> str:
     if not secret_name:
         raise ValueError("SLACK_TOKEN_SECRET_NAME environment variable is not set.")
 
-    logger.info(f"Accessing Secret Manager for Slack token: {secret_name}")
+    logger.info(f"Accessing Secret Manager for Slack Webhook URL: {secret_name}")
     response = get_sm_client().access_secret_version(request={"name": secret_name})
     return response.payload.data.decode("UTF-8").strip()
 
 
-def post_message_to_slack(token: str, channel: str, text: str) -> str:
+def post_message_to_slack(webhook_url: str, channel: str, text: str) -> str:
     """
-    Slack の chat.postMessage API を使用して、指定されたチャンネルにメッセージを送信します。
+    Slack Incoming Webhook URL を使用して、指定されたチャンネルにメッセージを送信します。
 
     Parameters
     ----------
-    token : str
-        Slack API トークン。
+    webhook_url : str
+        Slack Incoming Webhook URL。
     channel : str
-        送信先のチャンネル名（例: "#general"）またはチャンネル ID。
+        送信先のチャンネル名（例: "#general"）。Webhook側の設定によっては無視されます。
     text : str
         送信するメッセージテキスト。
 
@@ -73,32 +73,31 @@ def post_message_to_slack(token: str, channel: str, text: str) -> str:
     str
         送信ステータス。成功した場合は "success"、失敗した場合は "error: <理由>"。
     """
-    url = "https://slack.com/api/chat.postMessage"
     headers = {
         "Content-Type": "application/json; charset=utf-8",
-        "Authorization": f"Bearer {token}",
     }
     payload = {
-        "channel": channel,
         "text": text,
     }
+    if channel:
+        payload["channel"] = channel
+
     req = urllib.request.Request(
-        url,
+        webhook_url,
         data=json.dumps(payload).encode("utf-8"),
         headers=headers,
         method="POST",
     )
     try:
         with urllib.request.urlopen(req) as res:
-            body = json.loads(res.read().decode("utf-8"))
-            if not body.get("ok"):
-                error_msg = body.get("error", "Unknown error")
-                logger.error(f"Slack API error: {error_msg}")
-                return f"error: {error_msg}"
-            logger.info("Successfully sent Slack notification.")
+            body = res.read().decode("utf-8").strip()
+            if body != "ok":
+                logger.error(f"Slack Webhook error: {body}")
+                return f"error: {body}"
+            logger.info("Successfully sent Slack notification via Webhook.")
             return "success"
     except urllib.error.URLError as e:
-        logger.error(f"HTTP request to Slack failed: {str(e)}")
+        logger.error(f"HTTP request to Slack Webhook failed: {str(e)}")
         return f"error: {str(e)}"
     except Exception as e:
         logger.error(f"Unexpected error when sending Slack notification: {str(e)}")
@@ -137,9 +136,11 @@ def send_slack_notification(request: Request) -> Response:
         replies: list[str] = []
 
         try:
-            token = get_slack_token()
+            webhook_url = get_slack_webhook_url()
         except Exception as se:
-            logger.error(f"Failed to fetch Slack token from Secret Manager: {str(se)}")
+            logger.error(
+                f"Failed to fetch Slack Webhook URL from Secret Manager: {str(se)}"
+            )
             # トークン取得自体が失敗した場合は、すべての行をエラーにする
             error_response = {"errorMessage": f"Configuration error: {str(se)}"}
             return Response(
@@ -166,7 +167,7 @@ def send_slack_notification(request: Request) -> Response:
             channel_str = str(channel).strip()
             text_str = str(text).strip()
 
-            result = post_message_to_slack(token, channel_str, text_str)
+            result = post_message_to_slack(webhook_url, channel_str, text_str)
             replies.append(result)
 
         return Response(

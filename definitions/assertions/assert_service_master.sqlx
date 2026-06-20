@@ -1,0 +1,39 @@
+config {
+  type: "assertion",
+  name: "assert_service_master",
+  description: "service_master テーブルのデータ整合性チェック (空チェック、主キー重複チェック、Not Nullチェック)"
+}
+
+-- 1. 空チェック
+SELECT "Table service_master is empty" AS error_message
+FROM
+  (
+    SELECT COUNT(1) AS row_count FROM ${ref("service_master")}
+  )
+WHERE
+  row_count = 0
+
+UNION ALL
+
+-- 2. 主キー重複チェック (service_id)
+SELECT
+  FORMAT(
+    "Duplicate primary key service_id: %s",
+    CAST(service_id AS STRING)
+  ) AS error_message
+FROM
+  ${ref("service_master")}
+GROUP BY
+  service_id
+HAVING
+  COUNT(1) > 1
+
+UNION ALL
+
+-- 3. Not Nullチェック (service_id, service_name)
+SELECT "Null value found in critical columns (service_id or service_name)" AS error_message
+FROM
+  ${ref("service_master")}
+WHERE
+  service_id IS NULL
+  OR service_name IS NULL

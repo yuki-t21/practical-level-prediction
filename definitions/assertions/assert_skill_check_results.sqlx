@@ -1,0 +1,42 @@
+config {
+  type: "assertion",
+  name: "assert_skill_check_results",
+  description: "skill_check_results テーブルのデータ整合性チェック (空チェック、主キー重複チェック、Not Nullチェック)"
+}
+
+-- 1. 空チェック
+SELECT "Table skill_check_results is empty" AS error_message
+FROM
+  (
+    SELECT COUNT(1) AS row_count FROM ${ref("skill_check_results")}
+  )
+WHERE
+  row_count = 0
+
+UNION ALL
+
+-- 2. 主キー重複チェック (user_id, service_id)
+SELECT
+  FORMAT(
+    "Duplicate primary key (user_id, service_id): (%s, %s)",
+    CAST(user_id AS STRING),
+    CAST(service_id AS STRING)
+  ) AS error_message
+FROM
+  ${ref("skill_check_results")}
+GROUP BY
+  user_id,
+  service_id
+HAVING
+  COUNT(1) > 1
+
+UNION ALL
+
+-- 3. Not Nullチェック (user_id, service_id, is_practical_level)
+SELECT "Null value found in critical columns (user_id, service_id, or is_practical_level)" AS error_message
+FROM
+  ${ref("skill_check_results")}
+WHERE
+  user_id IS NULL
+  OR service_id IS NULL
+  OR is_practical_level IS NULL

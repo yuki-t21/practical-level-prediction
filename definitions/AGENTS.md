@@ -110,6 +110,58 @@ config {
 }
 ```
 
+### ④ ソーステーブル（declaration）に対するアサーション定義ルール
+- 他チーム管理または外部から取り込まれる `type: "declaration"`（ソーステーブル）については、設定ブロック（`config`）内にインラインで `assertions` を記述することができません。
+- そのため、必ず `definitions/assertions/` 配下に個別のアサーションファイル（`type: "assertion"`）を `assert_<table_name>.sqlx` という名称で作成して検証を行ってください。
+- 各ソーステーブルに対して、以下のチェックをすべて実装することを必須とします。
+  1. **レコード存在チェック（空チェック）**: テーブルにレコードが1件以上存在すること。
+  2. **主キー一意性チェック**: 主キー（または複合主キー）に重複レコードが存在しないこと。
+  3. **重要カラムの Not Null チェック**: 後続処理で欠損すると不具合となる主要カラムが NULL でないこと。
+- **実装方法（コスト最適化）**:
+  BigQuery での実行コストおよびアクション管理の煩雑さを抑えるため、上記の 3 つのチェックは個別のファイルに分けるのではなく、**`UNION ALL` を用いて 1 つのアサーションクエリ（1ファイル）に統合して記述**してください。
+
+#### 実装例：`definitions/assertions/assert_certification_levels.sqlx`
+```sql
+config {
+  type: "assertion",
+  name: "assert_certification_levels",
+  description: "certification_levels テーブルのデータ整合性チェック (空チェック、主キー重複チェック、Not Nullチェック)"
+}
+
+-- 1. 空チェック
+SELECT
+  "Table certification_levels is empty" AS error_message
+FROM
+  (
+    SELECT COUNT(1) AS row_count FROM ${ref("certification_levels")}
+  )
+WHERE
+  row_count = 0
+
+UNION ALL
+
+-- 2. 主キー重複チェック
+SELECT
+  FORMAT("Duplicate primary key cert_level_id: %s", CAST(cert_level_id AS STRING)) AS error_message
+FROM
+  ${ref("certification_levels")}
+GROUP BY
+  cert_level_id
+HAVING
+  COUNT(1) > 1
+
+UNION ALL
+
+-- 3. Not Nullチェック
+SELECT
+  "Null value found in critical columns (cert_level_id or level_name)" AS error_message
+FROM
+  ${ref("certification_levels")}
+WHERE
+  cert_level_id IS NULL
+  OR level_name IS NULL
+```
+
 ---
 
 ## 4. ユニットテスト (Unit Tests) の必須化
@@ -188,22 +240,17 @@ expect {
 
 ## 5. SQLLinting / Formatting の実行
 
-SQL の書き方（予約語の大文字統一など）を自動検証・修正するため、**SQLFluff** と **`sqlfluff-templater-dataform`** を導入しています。開発時はコミット前に必ず Linter を実行してください。
+SQL の書き方（予約語の大文字統一など）を自動検証・修正するため、**SQLFluff** と **`sqlfluff-templater-dataform`** を導入しています。
+GitHub Actions (CI/CD) の実行環境との不整合を防ぐため、ローカルでの実行にも **`uvx`** を利用して実行することを推奨します。これにより、環境の依存関係やバージョン差分による検知漏れを防ぎます。
 
-### ① インストール
-ローカルの Python 環境にパッケージをインストールします。
-```bash
-pip install sqlfluff sqlfluff-templater-dataform
-```
-
-### ② コマンドによる検証・自動修正
+### ① コマンドによる検証・自動修正
 リポジトリのルートディレクトリで以下のコマンドを実行します。
 ```bash
 # 構文チェック (エラー検出)
-sqlfluff lint definitions/
+uvx --with sqlfluff-templater-dataform sqlfluff lint definitions/
 
 # 自動フォーマット (可能な限り自動で大文字化やインデント修正)
-sqlfluff fix definitions/
+uvx --with sqlfluff-templater-dataform sqlfluff fix definitions/
 ```
 
 ---
@@ -214,7 +261,7 @@ sqlfluff fix definitions/
 
 ```bash
 # 1. SQL のスタイル・フォーマットチェック (SQLFluff)
-sqlfluff lint definitions/
+uvx --with sqlfluff-templater-dataform sqlfluff lint definitions/
 
 # 2. コンパイル確認 (構文・依存関係・スキーマエラーの検出)
 npx @dataform/cli compile

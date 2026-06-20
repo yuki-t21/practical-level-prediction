@@ -1,0 +1,39 @@
+config {
+  type: "assertion",
+  name: "assert_google_cloud_services",
+  description: "google_cloud_services テーブルのデータ整合性チェック (空チェック、主キー重複チェック、Not Nullチェック)"
+}
+
+-- 1. 空チェック
+SELECT "Table google_cloud_services is empty" AS error_message
+FROM
+  (
+    SELECT COUNT(1) AS row_count FROM ${ref("google_cloud_services")}
+  )
+WHERE
+  row_count = 0
+
+UNION ALL
+
+-- 2. 主キー重複チェック (google_cloud_service_id)
+SELECT
+  FORMAT(
+    "Duplicate primary key google_cloud_service_id: %s",
+    CAST(google_cloud_service_id AS STRING)
+  ) AS error_message
+FROM
+  ${ref("google_cloud_services")}
+GROUP BY
+  google_cloud_service_id
+HAVING
+  COUNT(1) > 1
+
+UNION ALL
+
+-- 3. Not Nullチェック (google_cloud_service_id, google_cloud_service_name)
+SELECT "Null value found in critical columns (google_cloud_service_id or google_cloud_service_name)" AS error_message
+FROM
+  ${ref("google_cloud_services")}
+WHERE
+  google_cloud_service_id IS NULL
+  OR google_cloud_service_name IS NULL

@@ -19,7 +19,7 @@
 レガシーな `pip` でのパッケージ操作や、直接的な `venv` 管理は行わないでください。
 
 ### ① パッケージの追加・更新
-各関数ディレクトリ（`import-skill-check/` または `export-prediction/`）の配下で、以下のコマンドを使用してパッケージを追加・更新します。
+各関数ディレクトリ（`import-skill-check/`、`export-prediction/`、または `send-slack-notification/`）の配下で、以下のコマンドを使用してパッケージを追加・更新します。
 これにより、`pyproject.toml` および `uv.lock` が自動的に同期されます。
 
 ```bash

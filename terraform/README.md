@@ -32,6 +32,7 @@
 | :--- | :--- | :--- | :--- |
 | `import-skill-check` | `import_skill_check` | `raw-skill-check-bucket-{suffix}` | 512 MiB / 60 秒 |
 | `export-prediction` | `export_prediction` | `target-user-list-bucket-{suffix}` | 1 GiB / 120 秒 |
+| `send-slack-notification` | `send_slack_notification` | HTTP (BigQuery Remote Function 用) | 256 MiB / 60 秒 |
 
 関数のソースコードは `../functions/` からビルド時に ZIP 化され、GCS 経由でデプロイされます。
 

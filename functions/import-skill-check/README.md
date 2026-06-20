@@ -1,6 +1,6 @@
 # import-skill-check (データインポート関数)
 
-この Cloud Run Function (第2世代) は、Google Cloud Storage (GCS) にアップロードされたスキルチェック結果の Excel ファイル (`.xlsx`) を検知し、自動的にデータを抽出・前処理して BigQuery の `raw_data.skill_check_results` テーブルへマージ (アップサート) するイベント駆動型サーバーレス関数です。
+この Cloud Run Function (第2世代) は、Google Cloud Storage (GCS) にアップロードされたスキルチェック結果の Excel ファイル (`.xlsx`) を検知し、自動的にデータを抽出・前処理して BigQuery の `raw_data.skill_check_results` テーブルへ上書きロード (WRITE_TRUNCATE) するイベント駆動型サーバーレス関数です。
 
 ---
 
@@ -11,7 +11,7 @@
 - **関数の役割**:
   1. GCS 上の Excel ファイルからデータを読み込み。
   2. カラム名のスネークケース化、ユーザーIDの欠損チェック、およびスコアや評価ラベルの正規化・マッピング前処理。
-  3. BigQuery へのロードとマージ処理（冪等性の担保）。
+  3. BigQuery への上書きロード（WRITE_TRUNCATE）処理（冪等性の担保）。
 
 ---
 
@@ -62,11 +62,7 @@
 ## 4. 冪等性（Idempotency）の担保
 
 本関数は何度実行してもデータベースの状態が破壊されず、同一のデータに収束するように設計されています。
-1. Excelデータを一度一時的なステージングテーブル (`raw_data.skill_check_results_staging`) に `WRITE_TRUNCATE` (上書き) でロード。
-2. ステージングテーブルから本番テーブル (`raw_data.skill_check_results`) に対し、`user_id` をキーにして `MERGE` クエリを実行。
-   - すでに `user_id` が存在する場合：既存のスコアや判定ラベルを最新のアップロード内容で更新 (UPDATE)
-   - `user_id` が存在しない場合：新規レコードとして挿入 (INSERT)
-3. 処理完了後、一時的なステージングテーブルは自動削除。
+- **`WRITE_TRUNCATE` による上書きロード**: BigQuery の `raw_data.skill_check_results` テーブルに対して、データフレームの内容を `WRITE_TRUNCATE`（上書き）モードで直接ロードします。これにより、同じ Excel ファイルから複数回インポートを実行しても、最終的なテーブル状態は常に同一になり、冪等性が担保されます。
 
 ---
 

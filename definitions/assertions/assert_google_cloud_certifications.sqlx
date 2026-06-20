@@ -1,0 +1,40 @@
+config {
+  type: "assertion",
+  name: "assert_google_cloud_certifications",
+  description: "google_cloud_certifications テーブルのデータ整合性チェック (空チェック、主キー重複チェック、Not Nullチェック)"
+}
+
+-- 1. 空チェック
+SELECT "Table google_cloud_certifications is empty" AS error_message
+FROM
+  (
+    SELECT COUNT(1) AS row_count FROM ${ref("google_cloud_certifications")}
+  )
+WHERE
+  row_count = 0
+
+UNION ALL
+
+-- 2. 主キー重複チェック (certification_id)
+SELECT
+  FORMAT(
+    "Duplicate primary key certification_id: %s",
+    CAST(certification_id AS STRING)
+  ) AS error_message
+FROM
+  ${ref("google_cloud_certifications")}
+GROUP BY
+  certification_id
+HAVING
+  COUNT(1) > 1
+
+UNION ALL
+
+-- 3. Not Nullチェック (certification_id, cert_level_id, certification_name)
+SELECT "Null value found in critical columns (certification_id, cert_level_id, or certification_name)" AS error_message
+FROM
+  ${ref("google_cloud_certifications")}
+WHERE
+  certification_id IS NULL
+  OR cert_level_id IS NULL
+  OR certification_name IS NULL

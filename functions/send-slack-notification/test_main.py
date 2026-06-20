@@ -14,12 +14,12 @@ class TestSendSlackNotification(unittest.TestCase):
         # Reset globals before each test
         main.sm_client = None
 
-    @patch("main.get_slack_token")
+    @patch("main.get_slack_webhook_url")
     @patch("main.post_message_to_slack")
     def test_send_slack_notification_success(
-        self, mock_post: MagicMock, mock_get_token: MagicMock
+        self, mock_post: MagicMock, mock_get_webhook: MagicMock
     ) -> None:
-        mock_get_token.return_value = "fake-token"
+        mock_get_webhook.return_value = "https://hooks.slack.com/services/fake-webhook"
         mock_post.side_effect = ["success", "success"]
 
         payload = {
@@ -38,14 +38,22 @@ class TestSendSlackNotification(unittest.TestCase):
             res_data = json.loads(response.get_data(as_text=True))
             self.assertEqual(res_data["replies"], ["success", "success"])
             self.assertEqual(mock_post.call_count, 2)
-            mock_post.assert_any_call("fake-token", "#channel-1", "test message 1")
-            mock_post.assert_any_call("fake-token", "#channel-2", "test message 2")
+            mock_post.assert_any_call(
+                "https://hooks.slack.com/services/fake-webhook",
+                "#channel-1",
+                "test message 1",
+            )
+            mock_post.assert_any_call(
+                "https://hooks.slack.com/services/fake-webhook",
+                "#channel-2",
+                "test message 2",
+            )
 
-    @patch("main.get_slack_token")
+    @patch("main.get_slack_webhook_url")
     def test_send_slack_notification_missing_args(
-        self, mock_get_token: MagicMock
+        self, mock_get_webhook: MagicMock
     ) -> None:
-        mock_get_token.return_value = "fake-token"
+        mock_get_webhook.return_value = "https://hooks.slack.com/services/fake-webhook"
 
         payload = {
             "calls": [
@@ -81,11 +89,11 @@ class TestSendSlackNotification(unittest.TestCase):
             res_data = json.loads(response.get_data(as_text=True))
             self.assertIn("errorMessage", res_data)
 
-    @patch("main.get_slack_token")
+    @patch("main.get_slack_webhook_url")
     def test_send_slack_notification_secret_manager_error(
-        self, mock_get_token: MagicMock
+        self, mock_get_webhook: MagicMock
     ) -> None:
-        mock_get_token.side_effect = Exception("Secret Manager Connection Failed")
+        mock_get_webhook.side_effect = Exception("Secret Manager Connection Failed")
 
         payload = {"calls": [["#channel", "message"]]}
 
@@ -99,14 +107,14 @@ class TestSendSlackNotification(unittest.TestCase):
             self.assertIn("errorMessage", res_data)
 
     @patch("os.environ.get")
-    def test_get_slack_token_missing_env(self, mock_env_get: MagicMock) -> None:
+    def test_get_slack_webhook_url_missing_env(self, mock_env_get: MagicMock) -> None:
         mock_env_get.return_value = None
         with self.assertRaises(ValueError):
-            main.get_slack_token()
+            main.get_slack_webhook_url()
 
     @patch("os.environ.get")
     @patch("main.get_sm_client")
-    def test_get_slack_token_success(
+    def test_get_slack_webhook_url_success(
         self, mock_get_sm: MagicMock, mock_env_get: MagicMock
     ) -> None:
         mock_env_get.return_value = "projects/12345/secrets/SLACK_TOKEN/versions/1"
@@ -116,11 +124,13 @@ class TestSendSlackNotification(unittest.TestCase):
 
         # Mock payload structure of Secret Manager response
         mock_version_response = MagicMock()
-        mock_version_response.payload.data = b"my-slack-token\n"
+        mock_version_response.payload.data = (
+            b"https://hooks.slack.com/services/fake-webhook\n"
+        )
         mock_sm_client.access_secret_version.return_value = mock_version_response
 
-        token = main.get_slack_token()
-        self.assertEqual(token, "my-slack-token")
+        webhook_url = main.get_slack_webhook_url()
+        self.assertEqual(webhook_url, "https://hooks.slack.com/services/fake-webhook")
         mock_sm_client.access_secret_version.assert_called_once_with(
             request={"name": "projects/12345/secrets/SLACK_TOKEN/versions/1"}
         )
@@ -128,22 +138,26 @@ class TestSendSlackNotification(unittest.TestCase):
     @patch("urllib.request.urlopen")
     def test_post_message_to_slack_success(self, mock_urlopen: MagicMock) -> None:
         mock_response = MagicMock()
-        mock_response.read.return_value = b'{"ok": true}'
+        mock_response.read.return_value = b"ok"
         mock_response.__enter__.return_value = mock_response
         mock_urlopen.return_value = mock_response
 
-        result = main.post_message_to_slack("token", "#channel", "hello")
+        result = main.post_message_to_slack(
+            "https://hooks.slack.com/services/fake-webhook", "#channel", "hello"
+        )
         self.assertEqual(result, "success")
 
     @patch("urllib.request.urlopen")
     def test_post_message_to_slack_api_error(self, mock_urlopen: MagicMock) -> None:
         mock_response = MagicMock()
-        mock_response.read.return_value = b'{"ok": false, "error": "channel_not_found"}'
+        mock_response.read.return_value = b"invalid_token"
         mock_response.__enter__.return_value = mock_response
         mock_urlopen.return_value = mock_response
 
-        result = main.post_message_to_slack("token", "#channel", "hello")
-        self.assertEqual(result, "error: channel_not_found")
+        result = main.post_message_to_slack(
+            "https://hooks.slack.com/services/fake-webhook", "#channel", "hello"
+        )
+        self.assertEqual(result, "error: invalid_token")
 
 
 if __name__ == "__main__":

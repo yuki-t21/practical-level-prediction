@@ -10,6 +10,7 @@
 - **`import-skill-check/`**: Excel データを縦持ちに変換し、BigQuery へ `WRITE_TRUNCATE` で上書きインポートする関数。
 - **`export-prediction/`**: 推論対象ユーザーリストに対し、BQML モデルを用いたバッチ予測および SHAP 重要度の平坦化を行い、サービス名を付与した Excel 予測レポートを出力する関数。
 - **`send-slack-notification/`**: BigQuery リモート関数から呼び出され、Secret Manager 上の Slack API トークンを使用して指定されたチャンネルに通知を送信する関数。
+- **`scrape-gcp-certifications/`**: Google Cloud 認定資格の公式サイトを Playwright でスクレイピングし、結果を JSON 文字列として返却する Cloud Run Service (BigQuery リモート関数から呼び出し)。
 
 ---
 
@@ -19,7 +20,7 @@
 レガシーな `pip` でのパッケージ操作や、直接的な `venv` 管理は行わないでください。
 
 ### ① パッケージの追加・更新
-各関数ディレクトリ（`import-skill-check/`、`export-prediction/`、または `send-slack-notification/`）の配下で、以下のコマンドを使用してパッケージを追加・更新します。
+各関数ディレクトリ（`import-skill-check/`、`export-prediction/`、`send-slack-notification/`、または `scrape-gcp-certifications/`）の配下で、以下のコマンドを使用してパッケージを追加・更新します。
 これにより、`pyproject.toml` および `uv.lock` が自動的に同期されます。
 
 ```bash

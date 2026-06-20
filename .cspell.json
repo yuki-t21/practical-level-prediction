@@ -32,7 +32,11 @@
     "radon",
     "cloudevents",
     "secretmanager",
-    "xoxb"
+    "xoxb",
+    "gunicorn",
+    "Gunicorn",
+    "KHTML",
+    "networkidle"
   ],
   "ignorePaths": [
     "**/node_modules/**",

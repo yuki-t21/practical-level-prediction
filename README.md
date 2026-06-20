@@ -64,12 +64,13 @@ practical-level-prediction/
 │   ├── common_pipeline_end.sqlx   # 共通終了 Slack 通知
 │   ├── service_pipeline_start.sqlx # サービス固有開始 Slack 通知
 │   └── service_pipeline_end.sqlx   # サービス固有終了 Slack 通知
-├── functions/                  # Cloud Run Functions (第2世代)
+├── functions/                  # Cloud Run Functions (第2世代) / Services
 │   ├── AGENTS.md
 │   ├── README.md
 │   ├── import-skill-check/     # Excel → BigQuery インポーター
 │   ├── export-prediction/      # BigQuery ML バッチ推論 → Excel エクスポーター
-│   └── send-slack-notification/ # Slack通知送信用関数 (BQリモート関数用)
+│   ├── send-slack-notification/ # Slack通知送信用関数 (BQリモート関数用)
+│   └── scrape-gcp-certifications/ # Google Cloud 認定資格スクレイピングサービス (BQリモート関数用)
 ├── terraform/                  # インフラ管理 (IaC)
 │   ├── AGENTS.md
 │   ├── README.md
@@ -248,6 +249,11 @@ uv run pytest
 # send-slack-notification
 cd functions/send-slack-notification
 uv sync --group dev
+uv run pytest
+
+# scrape-gcp-certifications
+cd functions/scrape-gcp-certifications
+uv sync --group dev --python 3.14
 uv run pytest
 ```
 

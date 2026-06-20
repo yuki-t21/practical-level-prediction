@@ -162,3 +162,40 @@ resource "google_cloudfunctions2_function" "send_slack_notification" {
     }
   }
 }
+
+
+
+# Cloud Run Service: scrape-gcp-certifications (deployed via gcloud run deploy --source, terraform manages config)
+resource "google_cloud_run_v2_service" "scrape_gcp_certifications" {
+  name     = "scrape-gcp-certifications"
+  location = var.region
+  ingress  = "INGRESS_TRAFFIC_ALL"
+
+  template {
+    service_account = google_service_account.pipeline_sa.email
+    timeout         = "120s"
+
+    containers {
+      image = "us-docker.pkg.dev/cloudrun/container/hello" # Initial dummy, managed by GitHub Actions (gcloud)
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "1Gi"
+        }
+      }
+    }
+  }
+
+  # Ignore container image and label/annotation modifications managed by gcloud run deploy
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+      client,
+      client_version,
+      template[0].labels,
+      template[0].annotations
+    ]
+  }
+}
+

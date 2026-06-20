@@ -1,0 +1,38 @@
+config {
+  type: "assertion",
+  name: "assert_certification_levels",
+  description: "certification_levels テーブルのデータ整合性チェック (空チェック、主キー重複チェック、Not Nullチェック)"
+}
+
+-- 1. 空チェック
+SELECT
+  "Table certification_levels is empty" AS error_message
+FROM
+  (
+    SELECT COUNT(1) AS row_count FROM ${ref("certification_levels")}
+  )
+WHERE
+  row_count = 0
+
+UNION ALL
+
+-- 2. 主キー重複チェック (cert_level_id)
+SELECT
+  FORMAT("Duplicate primary key cert_level_id: %s", CAST(cert_level_id AS STRING)) AS error_message
+FROM
+  ${ref("certification_levels")}
+GROUP BY
+  cert_level_id
+HAVING
+  COUNT(1) > 1
+
+UNION ALL
+
+-- 3. Not Nullチェック (cert_level_id, level_name)
+SELECT
+  "Null value found in critical columns (cert_level_id or level_name)" AS error_message
+FROM
+  ${ref("certification_levels")}
+WHERE
+  cert_level_id IS NULL
+  OR level_name IS NULL

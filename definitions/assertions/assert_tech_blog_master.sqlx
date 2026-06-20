@@ -1,0 +1,38 @@
+config {
+  type: "assertion",
+  name: "assert_tech_blog_master",
+  description: "tech_blog_master テーブルのデータ整合性チェック (空チェック、主キー重複チェック、Not Nullチェック)"
+}
+
+-- 1. 空チェック
+SELECT
+  "Table tech_blog_master is empty" AS error_message
+FROM
+  (
+    SELECT COUNT(1) AS row_count FROM ${ref("tech_blog_master")}
+  )
+WHERE
+  row_count = 0
+
+UNION ALL
+
+-- 2. 主キー重複チェック (blog_id)
+SELECT
+  FORMAT("Duplicate primary key blog_id: %s", CAST(blog_id AS STRING)) AS error_message
+FROM
+  ${ref("tech_blog_master")}
+GROUP BY
+  blog_id
+HAVING
+  COUNT(1) > 1
+
+UNION ALL
+
+-- 3. Not Nullチェック (blog_id, blog_service_name)
+SELECT
+  "Null value found in critical columns (blog_id or blog_service_name)" AS error_message
+FROM
+  ${ref("tech_blog_master")}
+WHERE
+  blog_id IS NULL
+  OR blog_service_name IS NULL

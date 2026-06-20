@@ -147,3 +147,11 @@ jobs:
           terraform init -backend-config="bucket=terraform-state-${{ secrets.GCP_PROJECT_ID }}"
           terraform apply -auto-approve -var="project_id=${{ secrets.GCP_PROJECT_ID }}"
 
+      - name: Deploy Scrape Cloud Run Service
+        run: |
+          gcloud run deploy scrape-gcp-certifications \
+            --source=functions/scrape-gcp-certifications \
+            --region=asia-northeast1 \
+            --service-account=ml-pipeline-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --no-allow-unauthenticated
+

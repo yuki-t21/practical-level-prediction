@@ -163,22 +163,9 @@ resource "google_cloudfunctions2_function" "send_slack_notification" {
   }
 }
 
-# Archive scrape-gcp-certifications source code
-data "archive_file" "scrape_gcp_certifications_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/../functions/scrape-gcp-certifications"
-  output_path = "${path.module}/files/scrape_gcp_certifications.zip"
-  excludes    = ["venv", ".venv", "__pycache__", "test_main.py", ".pytest_cache", "uv.lock"]
-}
 
-# Upload zipped source code to GCS source bucket
-resource "google_storage_bucket_object" "scrape_gcp_certifications_source" {
-  name   = "scrape_gcp_certifications_${data.archive_file.scrape_gcp_certifications_zip.output_md5}.zip"
-  bucket = google_storage_bucket.function_source.name
-  source = data.archive_file.scrape_gcp_certifications_zip.output_path
-}
 
-# Cloud Run Service: scrape-gcp-certifications (using source GCS ZIP with build_config)
+# Cloud Run Service: scrape-gcp-certifications (deployed via gcloud run deploy --source, terraform manages config)
 resource "google_cloud_run_v2_service" "scrape_gcp_certifications" {
   name     = "scrape-gcp-certifications"
   location = var.region
@@ -189,7 +176,7 @@ resource "google_cloud_run_v2_service" "scrape_gcp_certifications" {
     timeout         = "120s"
 
     containers {
-      image = "us-docker.pkg.dev/cloudrun/container/hello"
+      image = "us-docker.pkg.dev/cloudrun/container/hello" # Initial dummy, managed by GitHub Actions (gcloud)
 
       resources {
         limits = {
@@ -200,13 +187,15 @@ resource "google_cloud_run_v2_service" "scrape_gcp_certifications" {
     }
   }
 
-  build_config {
-    source {
-      storage_source {
-        bucket = google_storage_bucket.function_source.name
-        object = google_storage_bucket_object.scrape_gcp_certifications_source.name
-      }
-    }
+  # Ignore container image and label/annotation modifications managed by gcloud run deploy
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+      client,
+      client_version,
+      template[0].labels,
+      template[0].annotations
+    ]
   }
 }
 

@@ -240,22 +240,17 @@ expect {
 
 ## 5. SQLLinting / Formatting の実行
 
-SQL の書き方（予約語の大文字統一など）を自動検証・修正するため、**SQLFluff** と **`sqlfluff-templater-dataform`** を導入しています。開発時はコミット前に必ず Linter を実行してください。
+SQL の書き方（予約語の大文字統一など）を自動検証・修正するため、**SQLFluff** と **`sqlfluff-templater-dataform`** を導入しています。
+GitHub Actions (CI/CD) の実行環境との不整合を防ぐため、ローカルでの実行にも **`uvx`** を利用して実行することを推奨します。これにより、環境の依存関係やバージョン差分による検知漏れを防ぎます。
 
-### ① インストール
-ローカルの Python 環境にパッケージをインストールします。
-```bash
-pip install sqlfluff sqlfluff-templater-dataform
-```
-
-### ② コマンドによる検証・自動修正
+### ① コマンドによる検証・自動修正
 リポジトリのルートディレクトリで以下のコマンドを実行します。
 ```bash
 # 構文チェック (エラー検出)
-sqlfluff lint definitions/
+uvx --with sqlfluff-templater-dataform sqlfluff lint definitions/
 
 # 自動フォーマット (可能な限り自動で大文字化やインデント修正)
-sqlfluff fix definitions/
+uvx --with sqlfluff-templater-dataform sqlfluff fix definitions/
 ```
 
 ---
@@ -266,7 +261,7 @@ sqlfluff fix definitions/
 
 ```bash
 # 1. SQL のスタイル・フォーマットチェック (SQLFluff)
-sqlfluff lint definitions/
+uvx --with sqlfluff-templater-dataform sqlfluff lint definitions/
 
 # 2. コンパイル確認 (構文・依存関係・スキーマエラーの検出)
 npx @dataform/cli compile

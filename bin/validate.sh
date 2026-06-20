@@ -57,4 +57,8 @@ echo "--> Verifying Dataform compilation..."
 cd "$REPO_ROOT"
 npx @dataform/cli compile
 
+# 4. Spell Check Verification
+echo "--> Verifying Spellings with cSpell..."
+npx cspell "functions/**/*" --no-must-find-files
+
 echo "=== Validation Successful ==="

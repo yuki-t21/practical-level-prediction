@@ -36,7 +36,11 @@
     "gunicorn",
     "Gunicorn",
     "KHTML",
-    "networkidle"
+    "networkidle",
+    "fastapi",
+    "uvicorn",
+    "Uvicorn",
+    "httpx"
   ],
   "ignorePaths": [
     "**/node_modules/**",

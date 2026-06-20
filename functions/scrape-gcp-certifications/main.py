@@ -1,15 +1,57 @@
-import asyncio
 import json
 import logging
 from typing import Any, cast
 
-import functions_framework
-from flask import Request, Response
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from playwright.async_api import async_playwright
+from pydantic import BaseModel, Field
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+app = FastAPI(title="scrape-gcp-certifications", version="0.1.0")
+
+
+class BigQueryRemoteFunctionRequest(BaseModel):
+    """
+    BigQuery リモート関数からのリクエストデータモデル。
+
+    Attributes
+    ----------
+    requestId : str | None
+        リクエスト ID。
+    caller : str | None
+        呼び出し元。
+    userDefinedContext : dict[str, Any] | None
+        ユーザー定義のコンテキスト。
+    calls : list[list[Any]]
+        BigQuery から渡される引数のバッチリスト。
+    """
+
+    requestId: str | None = Field(default=None, description="リクエスト ID")
+    caller: str | None = Field(default=None, description="呼び出し元")
+    userDefinedContext: dict[str, Any] | None = Field(
+        default=None, description="ユーザー定義コンテキスト"
+    )
+    calls: list[list[Any]] = Field(..., description="引数のバッチリスト")
+
+
+class BigQueryRemoteFunctionResponse(BaseModel):
+    """
+    BigQuery リモート関数へのレスポンスデータモデル。
+
+    Attributes
+    ----------
+    replies : list[str]
+        各呼び出しに対する応答メッセージのリスト。
+    errorMessage : str | None
+        エラーが発生した場合のメッセージ。
+    """
+
+    replies: list[str] = Field(default=[], description="応答メッセージのリスト")
+    errorMessage: str | None = Field(default=None, description="エラーメッセージ")
 
 
 async def scrape_certifications() -> list[dict[str, str]]:
@@ -104,60 +146,58 @@ async def scrape_certifications() -> list[dict[str, str]]:
             await browser.close()
 
 
-@functions_framework.http
-def handler(request: Request) -> Response:
+@app.get("/")
+async def health_check() -> dict[str, str]:
+    """
+    サービスの起動状態を確認するヘルスチェックエンドポイント。
+
+    Returns
+    -------
+    dict[str, str]
+        ステータス情報。
+    """
+    return {"status": "ok"}
+
+
+@app.post("/", response_model=BigQueryRemoteFunctionResponse)
+async def handler(
+    request_payload: BigQueryRemoteFunctionRequest,
+) -> Any:
     """
     BigQuery リモート関数からの HTTP リクエストを処理し、
     Google Cloud 認定資格の一覧を JSON 文字列として返します。
 
     Parameters
     ----------
-    request : flask.Request
-        HTTP リクエストオブジェクト。
+    request_payload : BigQueryRemoteFunctionRequest
+        HTTP リクエストボディを表す Pydantic モデル。
 
     Returns
     -------
-    flask.Response
-        HTTP レスポンスオブジェクト。
+    Any
+        BigQuery リモート関数の仕様に沿ったレスポンス。
     """
     try:
-        request_json = request.get_json(silent=True)
-        if not request_json or "calls" not in request_json:
-            error_response = {"errorMessage": "Invalid request: missing 'calls'"}
-            return Response(
-                response=json.dumps(error_response),
-                status=400,
-                mimetype="application/json",
-            )
+        calls = request_payload.calls
 
-        calls: list[list[Any]] = request_json["calls"]
-
-        # Run async scraping function using asyncio
+        # Run async scraping function directly
         try:
-            certifications = asyncio.run(scrape_certifications())
+            certifications = await scrape_certifications()
             certs_json_str = json.dumps(certifications, ensure_ascii=False)
         except Exception as se:
             logger.exception("Failed to scrape certifications")
-            error_response = {"errorMessage": f"Scraping error: {str(se)}"}
-            return Response(
-                response=json.dumps(error_response),
-                status=500,
-                mimetype="application/json",
+            return JSONResponse(
+                status_code=500,
+                content={"errorMessage": f"Scraping error: {str(se)}"},
             )
 
         # BigQuery expects one reply for each call in the batch
         replies = [certs_json_str for _ in calls]
-        return Response(
-            response=json.dumps({"replies": replies}),
-            status=200,
-            mimetype="application/json",
-        )
+        return BigQueryRemoteFunctionResponse(replies=replies)
 
     except Exception as e:
         logger.exception("Unexpected error in handler")
-        error_response = {"errorMessage": f"System error: {str(e)}"}
-        return Response(
-            response=json.dumps(error_response),
-            status=500,
-            mimetype="application/json",
+        return JSONResponse(
+            status_code=500,
+            content={"errorMessage": f"System error: {str(e)}"},
         )

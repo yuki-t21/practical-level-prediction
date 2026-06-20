@@ -26,15 +26,16 @@
 | `features` | Dataform が生成する特徴量テーブル群 |
 | `ml_models` | BQML モデル・評価結果・推論結果テーブル |
 
-### Cloud Run Functions (第2世代)
+### Cloud Run Functions (第2世代) / Cloud Run Services
 
-| 関数名 | エントリポイント | トリガーバケット | メモリ / タイムアウト |
+| 関数/サービス名 | エントリポイント / 起動定義 | トリガー / 用途 | メモリ / タイムアウト |
 | :--- | :--- | :--- | :--- |
 | `import-skill-check` | `import_skill_check` | `raw-skill-check-bucket-{suffix}` | 512 MiB / 60 秒 |
 | `export-prediction` | `export_prediction` | `target-user-list-bucket-{suffix}` | 1 GiB / 120 秒 |
 | `send-slack-notification` | `send_slack_notification` | HTTP (BigQuery Remote Function 用) | 256 MiB / 60 秒 |
+| `scrape-gcp-certifications` | Dockerfile (`main:handler`) | HTTP (BigQuery Remote Function 用) | 1 GiB / 120 秒 |
 
-関数のソースコードは `../functions/` からビルド時に ZIP 化され、GCS 経由でデプロイされます。
+ソースコードは `../functions/` からビルド時に ZIP 化され、GCS 経由でデプロイされます。`scrape-gcp-certifications` は Dockerfile に基づき Cloud Build 経由で自動コンテナビルド・デプロイされます。
 
 ### Dataform
 

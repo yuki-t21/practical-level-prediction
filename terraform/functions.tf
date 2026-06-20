@@ -162,3 +162,51 @@ resource "google_cloudfunctions2_function" "send_slack_notification" {
     }
   }
 }
+
+# Archive scrape-gcp-certifications source code
+data "archive_file" "scrape_gcp_certifications_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../functions/scrape-gcp-certifications"
+  output_path = "${path.module}/files/scrape_gcp_certifications.zip"
+  excludes    = ["venv", ".venv", "__pycache__", "test_main.py", ".pytest_cache", "uv.lock"]
+}
+
+# Upload zipped source code to GCS source bucket
+resource "google_storage_bucket_object" "scrape_gcp_certifications_source" {
+  name   = "scrape_gcp_certifications_${data.archive_file.scrape_gcp_certifications_zip.output_md5}.zip"
+  bucket = google_storage_bucket.function_source.name
+  source = data.archive_file.scrape_gcp_certifications_zip.output_path
+}
+
+# Cloud Run Service: scrape-gcp-certifications (using source GCS ZIP with build_config)
+resource "google_cloud_run_v2_service" "scrape_gcp_certifications" {
+  name     = "scrape-gcp-certifications"
+  location = var.region
+  ingress  = "INGRESS_TRAFFIC_ALL"
+
+  template {
+    service_account = google_service_account.pipeline_sa.email
+    timeout         = "120s"
+
+    containers {
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "1Gi"
+        }
+      }
+    }
+  }
+
+  build_config {
+    source {
+      storage_source {
+        bucket = google_storage_bucket.function_source.name
+        object = google_storage_bucket_object.scrape_gcp_certifications_source.name
+      }
+    }
+  }
+}
+

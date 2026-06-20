@@ -4,15 +4,16 @@ on:
   push:
     branches:
       - main
-      - develop
   pull_request:
     branches:
       - main
+      - develop
 
 jobs:
   validate:
     name: Lint and Validate
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -75,6 +76,23 @@ jobs:
           fi
           uv run pytest test_main.py
 
+      - name: Lint and Test Scrape Function
+        run: |
+          cd functions/scrape-gcp-certifications
+          uv sync --group dev
+          uv run black --check .
+          uv run flake8 .
+          uv run mypy .
+          uv run isort --check-only --diff .
+          # radon cyclomatic complexity check (fail if C or worse is found)
+          result=$(uv run radon cc . -e "test_*.py" -n C)
+          if [ -n "$result" ]; then
+            echo "Error: Cyclomatic complexity is too high (C or worse found):"
+            echo "$result"
+            exit 1
+          fi
+          uv run pytest test_main.py
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
@@ -105,7 +123,6 @@ jobs:
 
   deploy:
     name: Deploy to GCP
-    needs: validate
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

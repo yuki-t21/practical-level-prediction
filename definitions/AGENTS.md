@@ -110,6 +110,58 @@ config {
 }
 ```
 
+### ④ ソーステーブル（declaration）に対するアサーション定義ルール
+- 他チーム管理または外部から取り込まれる `type: "declaration"`（ソーステーブル）については、設定ブロック（`config`）内にインラインで `assertions` を記述することができません。
+- そのため、必ず `definitions/assertions/` 配下に個別のアサーションファイル（`type: "assertion"`）を `assert_<table_name>.sqlx` という名称で作成して検証を行ってください。
+- 各ソーステーブルに対して、以下のチェックをすべて実装することを必須とします。
+  1. **レコード存在チェック（空チェック）**: テーブルにレコードが1件以上存在すること。
+  2. **主キー一意性チェック**: 主キー（または複合主キー）に重複レコードが存在しないこと。
+  3. **重要カラムの Not Null チェック**: 後続処理で欠損すると不具合となる主要カラムが NULL でないこと。
+- **実装方法（コスト最適化）**:
+  BigQuery での実行コストおよびアクション管理の煩雑さを抑えるため、上記の 3 つのチェックは個別のファイルに分けるのではなく、**`UNION ALL` を用いて 1 つのアサーションクエリ（1ファイル）に統合して記述**してください。
+
+#### 実装例：`definitions/assertions/assert_certification_levels.sqlx`
+```sql
+config {
+  type: "assertion",
+  name: "assert_certification_levels",
+  description: "certification_levels テーブルのデータ整合性チェック (空チェック、主キー重複チェック、Not Nullチェック)"
+}
+
+-- 1. 空チェック
+SELECT
+  "Table certification_levels is empty" AS error_message
+FROM
+  (
+    SELECT COUNT(1) AS row_count FROM ${ref("certification_levels")}
+  )
+WHERE
+  row_count = 0
+
+UNION ALL
+
+-- 2. 主キー重複チェック
+SELECT
+  FORMAT("Duplicate primary key cert_level_id: %s", CAST(cert_level_id AS STRING)) AS error_message
+FROM
+  ${ref("certification_levels")}
+GROUP BY
+  cert_level_id
+HAVING
+  COUNT(1) > 1
+
+UNION ALL
+
+-- 3. Not Nullチェック
+SELECT
+  "Null value found in critical columns (cert_level_id or level_name)" AS error_message
+FROM
+  ${ref("certification_levels")}
+WHERE
+  cert_level_id IS NULL
+  OR level_name IS NULL
+```
+
 ---
 
 ## 4. ユニットテスト (Unit Tests) の必須化

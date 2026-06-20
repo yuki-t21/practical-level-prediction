@@ -49,19 +49,27 @@ practical-level-prediction/
 ├── definitions/                # Dataform 定義 (特徴量エンジニアリング・BQML)
 │   ├── AGENTS.md               # Dataform 開発ルール
 │   ├── README.md               # Dataform 概要・仕様
-│   ├── sources/            # ソーステーブル宣言 (type: declaration)
-│   ├── tests/              # ユニットテスト定義
-│   ├── common_features.sqlx
-│   ├── service_mapping.sqlx
-│   ├── engineer_features.sqlx
-│   ├── train_model.sqlx
-│   ├── evaluate_model.sqlx
-│   └── explain_predictions.sqlx
+│   ├── sources/                # ソーステーブル宣言 (type: declaration)
+│   ├── assertions/             # ソースデータ整合性検証アサーション (type: assertion)
+│   ├── tests/                  # ユニットテスト定義
+│   ├── level_weights.sqlx      # 資格難易度重みテーブル
+│   ├── service_mapping.sqlx    # サービス名マッピング
+│   ├── common_features.sqlx    # 共通特徴量
+│   ├── service_features.sqlx   # サービス固有特徴量
+│   ├── engineer_features.sqlx  # マージ特徴量
+│   ├── train_model.sqlx        # モデル学習
+│   ├── evaluate_model.sqlx     # モデル評価
+│   ├── explain_predictions.sqlx # バッチ推論・SHAP重要度
+│   ├── common_pipeline_start.sqlx # 共通開始 Slack 通知
+│   ├── common_pipeline_end.sqlx   # 共通終了 Slack 通知
+│   ├── service_pipeline_start.sqlx # サービス固有開始 Slack 通知
+│   └── service_pipeline_end.sqlx   # サービス固有終了 Slack 通知
 ├── functions/                  # Cloud Run Functions (第2世代)
 │   ├── AGENTS.md
 │   ├── README.md
 │   ├── import-skill-check/     # Excel → BigQuery インポーター
-│   └── export-prediction/      # BigQuery ML バッチ推論 → Excel エクスポーター
+│   ├── export-prediction/      # BigQuery ML バッチ推論 → Excel エクスポーター
+│   └── send-slack-notification/ # Slack通知送信用関数 (BQリモート関数用)
 ├── terraform/                  # インフラ管理 (IaC)
 │   ├── AGENTS.md
 │   ├── README.md

@@ -1,6 +1,6 @@
 # functions/ — Cloud Run Functions
 
-本ディレクトリには、実務レベル予測パイプラインを構成する 2 つの **Cloud Run Functions (第2世代)** が収録されています。
+本ディレクトリには、実務レベル予測パイプラインを構成する 3 つの **Cloud Run Functions (第2世代)** が収録されています。
 
 ---
 

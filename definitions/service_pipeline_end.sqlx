@@ -5,8 +5,21 @@ config {
   dependencies: ["explain_predictions_operation"],
 }
 
+WITH service_info AS (
+  SELECT
+    service_name
+  FROM
+    ${ref("service_master")}
+  WHERE
+    service_id = ${dataform.projectConfig.vars.service_id}
+)
+
 SELECT
   `${dataform.projectConfig.defaultDatabase}.ml_models.send_slack`(
     '#predictions-alert',
-    '✅ サービス固有パイプライン (service_features_pipeline) が完了しました。(対象サービスID: ${dataform.projectConfig.vars.service_id})'
+    FORMAT(
+      '✅ サービス固有パイプライン (service_features_pipeline) が完了しました。(対象サービス: [%s] %s)',
+      '${dataform.projectConfig.vars.service_id}',
+      COALESCE((SELECT service_name FROM service_info), '不明なサービス')
+    )
   );

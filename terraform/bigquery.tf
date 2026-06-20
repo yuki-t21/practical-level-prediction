@@ -60,3 +60,34 @@ resource "google_bigquery_routine" "send_slack" {
     google_project_iam_member.deployer_bq_connection_admin
   ]
 }
+
+# BigQuery Connection for GCP Certifications Scraping Cloud Run Service
+resource "google_bigquery_connection" "gcp_certifications_connection" {
+  connection_id = "gcp_certifications_conn"
+  location      = var.region
+  friendly_name = "GCP Certifications Scraping Connection"
+  description   = "Connection to invoke GCP certifications scraping Cloud Run Service"
+  cloud_resource {}
+}
+
+# BigQuery Remote Function for GCP Certifications Scraping
+resource "google_bigquery_routine" "scrape_gcp_certifications" {
+  dataset_id      = google_bigquery_dataset.raw_data.dataset_id
+  routine_id      = "scrape_gcp_certifications"
+  routine_type    = "SCALAR_FUNCTION"
+  language        = "SQL"
+  definition_body = ""
+
+  return_type = "{\"typeKind\" : \"STRING\"}"
+
+  remote_function_options {
+    endpoint          = google_cloud_run_v2_service.scrape_gcp_certifications.uri
+    connection        = google_bigquery_connection.gcp_certifications_connection.name
+    max_batching_rows = "1"
+  }
+
+  depends_on = [
+    google_project_iam_member.deployer_bq_connection_admin
+  ]
+}
+

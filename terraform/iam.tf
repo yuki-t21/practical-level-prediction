@@ -141,3 +141,11 @@ resource "google_project_iam_member" "deployer_bq_connection_admin" {
   member  = "serviceAccount:${google_service_account.github_deployer_sa.email}"
 }
 
+# Allow BigQuery Connection service account to invoke the GCP Certifications Scraping Cloud Run Service
+resource "google_project_iam_member" "bq_connection_run_invoker_gcp_certs" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_bigquery_connection.gcp_certifications_connection.cloud_resource[0].service_account_id}"
+}
+
+

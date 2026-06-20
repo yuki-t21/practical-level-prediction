@@ -1,0 +1,64 @@
+config {
+  type: "assertion",
+  name: "assert_google_cloud_certifications_match_scraping",
+  description: "google_cloud_certifications のデータが Playwright のスクレイピング結果（資格名、レベル、有効期間）と一致することを確認"
+}
+
+WITH scraped_json AS (
+  -- リモート関数を呼び出し、JSON 文字列を取得
+  SELECT `${dataform.projectConfig.defaultDatabase}.raw_data.scrape_gcp_certifications`() AS json_data
+),
+
+scraped_certs AS (
+  -- JSON を行に展開
+  SELECT
+    JSON_VALUE(item, '$.title') AS cert_name,
+    JSON_VALUE(item, '$.level') AS cert_level,
+    CASE JSON_VALUE(item, '$.level')
+      WHEN 'Foundational' THEN 3
+      WHEN 'Associate' THEN 3
+      WHEN 'Professional' THEN 2
+    END AS validity_years
+  FROM
+    scraped_json,
+    UNNEST(JSON_QUERY_ARRAY(json_data)) AS item
+),
+
+mapped_mst AS (
+  -- マスターテーブルのデータを取得し、レベル名を英語にマッピング
+  SELECT
+    c.certification_name,
+    c.validity_years,
+    CASE l.level_name
+      WHEN 'プロフェッショナル' THEN 'Professional'
+      WHEN 'アソシエイト' THEN 'Associate'
+      WHEN '基礎' THEN 'Foundational'
+      ELSE l.level_name
+    END AS cert_level
+  FROM
+    ${ref("google_cloud_certifications")} AS c
+  INNER JOIN
+    ${ref("certification_levels")} AS l
+    ON
+      c.cert_level_id = l.cert_level_id
+)
+
+-- 突合チェック
+-- マスターに存在する資格が、スクレイピング結果に存在しない、または属性が一致しない行を抽出
+SELECT
+  FORMAT(
+    'Certification mismatch or missing in scraped data. Name: %s, Master Level: %s, Master Validity: %d',
+    m.certification_name,
+    m.cert_level,
+    m.validity_years
+  ) AS error_message
+FROM
+  mapped_mst AS m
+LEFT JOIN
+  scraped_certs AS s
+  ON
+    m.certification_name = s.cert_name
+WHERE
+  s.cert_name IS NULL
+  OR m.cert_level != s.cert_level
+  OR m.validity_years != s.validity_years

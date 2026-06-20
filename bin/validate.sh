@@ -57,6 +57,9 @@ echo "--> Verifying Dataform compilation..."
 cd "$REPO_ROOT"
 npx @dataform/cli compile
 
+echo "--> Verifying SQLX files with SQLFluff..."
+uvx --with sqlfluff-templater-dataform sqlfluff lint definitions/
+
 # 4. Spell Check Verification
 echo "--> Verifying Spellings with cSpell..."
 npx cspell "functions/**/*" --no-must-find-files

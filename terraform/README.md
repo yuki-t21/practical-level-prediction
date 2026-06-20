@@ -33,7 +33,7 @@
 | `import-skill-check` | `import_skill_check` | `raw-skill-check-bucket-{suffix}` | 512 MiB / 60 秒 |
 | `export-prediction` | `export_prediction` | `target-user-list-bucket-{suffix}` | 1 GiB / 120 秒 |
 | `send-slack-notification` | `send_slack_notification` | HTTP (BigQuery Remote Function 用) | 256 MiB / 60 秒 |
-| `scrape-gcp-certifications` | Dockerfile (`main:handler`) | HTTP (BigQuery Remote Function 用) | 1 GiB / 120 秒 |
+| `scrape-gcp-certifications` | Dockerfile (`main:app`) | HTTP (BigQuery Remote Function 用) | 1 GiB / 120 秒 |
 
 ソースコードは `../functions/` からビルド時に ZIP 化され、GCS 経由でデプロイされます。`scrape-gcp-certifications` は Dockerfile に基づき Cloud Build 経由で自動コンテナビルド・デプロイされます。
 

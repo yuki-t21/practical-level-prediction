@@ -22,5 +22,5 @@ COPY main.py ./
 # Expose port (Cloud Run sets PORT env, defaults to 8080)
 EXPOSE 8080
 
-# Run the web service using Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "8", "--timeout", "0", "main:handler"]
+# Run the web service using Uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -5,11 +5,10 @@ config {
 }
 
 -- 1. 空チェック
-SELECT
-  "Table certification_levels is empty" AS error_message
+SELECT "Table certification_levels is empty" AS error_message
 FROM
   (
-    SELECT COUNT(1) AS row_count FROM ${ref("certification_levels")}
+    SELECT COUNT(*) AS row_count FROM ${ref("certification_levels")}
   )
 WHERE
   row_count = 0
@@ -17,20 +16,18 @@ WHERE
 UNION ALL
 
 -- 2. 主キー重複チェック (cert_level_id)
-SELECT
-  FORMAT("Duplicate primary key cert_level_id: %s", CAST(cert_level_id AS STRING)) AS error_message
+SELECT FORMAT("Duplicate primary key cert_level_id: %s", CAST(cert_level_id AS STRING)) AS error_message
 FROM
   ${ref("certification_levels")}
 GROUP BY
   cert_level_id
 HAVING
-  COUNT(1) > 1
+  COUNT(*) > 1
 
 UNION ALL
 
 -- 3. Not Nullチェック (cert_level_id, level_name)
-SELECT
-  "Null value found in critical columns (cert_level_id or level_name)" AS error_message
+SELECT "Null value found in critical columns (cert_level_id or level_name)" AS error_message
 FROM
   ${ref("certification_levels")}
 WHERE

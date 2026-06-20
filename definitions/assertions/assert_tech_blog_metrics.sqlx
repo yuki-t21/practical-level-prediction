@@ -5,11 +5,10 @@ config {
 }
 
 -- 1. 空チェック
-SELECT
-  "Table tech_blog_metrics is empty" AS error_message
+SELECT "Table tech_blog_metrics is empty" AS error_message
 FROM
   (
-    SELECT COUNT(1) AS row_count FROM ${ref("tech_blog_metrics")}
+    SELECT COUNT(*) AS row_count FROM ${ref("tech_blog_metrics")}
   )
 WHERE
   row_count = 0
@@ -17,8 +16,12 @@ WHERE
 UNION ALL
 
 -- 2. 主キー重複チェック (user_id, blog_service, google_cloud_service_id)
-SELECT
-  FORMAT("Duplicate primary key (user_id, blog_service, google_cloud_service_id): (%s, %s, %s)", CAST(user_id AS STRING), CAST(blog_service AS STRING), CAST(google_cloud_service_id AS STRING)) AS error_message
+SELECT FORMAT(
+  "Duplicate primary key (user_id, blog_service, google_cloud_service_id): (%s, %s, %s)",
+  CAST(user_id AS STRING),
+  CAST(blog_service AS STRING),
+  CAST(google_cloud_service_id AS STRING)
+) AS error_message
 FROM
   ${ref("tech_blog_metrics")}
 GROUP BY
@@ -26,13 +29,12 @@ GROUP BY
   blog_service,
   google_cloud_service_id
 HAVING
-  COUNT(1) > 1
+  COUNT(*) > 1
 
 UNION ALL
 
 -- 3. Not Nullチェック (user_id, blog_service, google_cloud_service_id)
-SELECT
-  "Null value found in critical columns (user_id, blog_service, or google_cloud_service_id)" AS error_message
+SELECT "Null value found in critical columns (user_id, blog_service, or google_cloud_service_id)" AS error_message
 FROM
   ${ref("tech_blog_metrics")}
 WHERE
